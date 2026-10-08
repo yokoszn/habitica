@@ -42,7 +42,10 @@ export function getLogtoConfig () {
   if (!logtoConfigPromise) {
     logtoConfigPromise = axios.get('/api/v4/user/auth/logto/config')
       .then(response => response.data.data)
-      .catch(() => ({ enabled: false }));
+      .catch(() => {
+        logtoConfigPromise = null; // retry on the next call
+        return { enabled: false };
+      });
   }
   return logtoConfigPromise;
 }

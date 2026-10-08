@@ -22,14 +22,15 @@
       </div>
       <template v-if="logto.enabled">
         <div class="form-group">
-          <div
+          <button
+            type="button"
             class="btn btn-secondary social-button"
             @click="logtoSignIn()"
           >
             <div class="text">
               {{ $t('signUpWithSocial', {social: logto.name}) }}
             </div>
-          </div>
+          </button>
         </div>
         <div class="strike mb-3">
           <span>{{ $t('or') }}</span>

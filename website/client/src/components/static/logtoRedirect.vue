@@ -48,7 +48,13 @@ export default {
       return;
     }
 
-    const response = await this.$store.dispatch('auth:logtoAuth');
+    let response;
+    try {
+      response = await this.$store.dispatch('auth:logtoAuth');
+    } catch (err) {
+      this.errorMessage = this.$t('logtoSignInFailed');
+      return;
+    }
     if (response.error) {
       this.errorMessage = typeof response.error === 'string'
         ? response.error

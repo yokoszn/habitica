@@ -132,7 +132,7 @@ Users can sign in with [Logto](https://logto.io) (self-hosted or Logto Cloud) in
       - LOGTO_DISPLAY_NAME=Logto # optional, the name shown on the "Continue with ..." button
 ```
 
-The login and registration pages then show a "Continue with Logto" button, and existing users can connect Logto to their account in the general settings. A Logto user is matched to an existing Habitica account by their email address, but only if Logto reports that address as verified. Otherwise a new account is created, using the Logto username if it is available.
+The login and registration pages then show a "Continue with Logto" button, and existing users can connect Logto to their account in the general settings. A Logto user is matched to an existing Habitica account by their email address, but only if Logto reports that address as verified. Otherwise a new account is created, using the Logto username if it is available. With `INVITE_ONLY=true`, Logto can only be used for existing accounts: invited users register with the invitation link first and can then connect Logto in the settings.
 
 ## Readme of the Upstream Habitica Repository
 

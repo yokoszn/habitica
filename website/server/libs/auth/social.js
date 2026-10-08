@@ -1,4 +1,5 @@
 import passport from 'passport';
+import nconf from 'nconf';
 import common from '../../../common';
 import { verifyUsername } from '../user/validation';
 import { BadRequest, NotAuthorized, NotFound } from '../errors';
@@ -14,6 +15,8 @@ import { model as EmailUnsubscription } from '../../models/emailUnsubscription';
 import { sendTxn as sendTxnEmail } from '../email';
 import { apiError } from '../apiError';
 import { trackRegistrationEvent } from '../localAnalytics';
+
+const INVITE_ONLY = nconf.get('INVITE_ONLY') === 'true';
 
 function _passportProfile (network, accessToken) {
   return new Promise((resolve, reject) => {
@@ -121,6 +124,9 @@ export async function loginSocial (req, res) {
     }
     throw new NotFound(res.t('userNotFound'));
   }
+
+  // New accounts can only be created via an invitation (handled by the local registration)
+  if (!existingUser && INVITE_ONLY) throw new NotAuthorized(res.t('inviteOnly'));
 
   const username = req.body.username || profile.username || generateUsername();
   let sanitizedUsername = username.replace(/[^a-zA-Z0-9_-]/g, '');
