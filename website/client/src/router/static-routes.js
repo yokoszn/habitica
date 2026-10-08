@@ -6,6 +6,7 @@ const StaticWrapper = () => import('@/components/static/staticWrapper');
 const HomePage = () => import('@/components/static/home');
 
 const AppleRedirectPage = () => import('@/components/static/appleRedirect');
+const LogtoRedirectPage = () => import('@/components/static/logtoRedirect');
 const ChatSunsetFaq = () => import('@/components/static/chatSunsetFaq');
 const ClearBrowserDataPage = () => import('@/components/static/clearBrowserData');
 const CommunityGuidelinesPage = () => import('@/components/static/communityGuidelines');
@@ -32,6 +33,9 @@ export const STATIC_ROUTES = {
   children: [
     {
       name: 'appleRedirect', path: 'apple-redirect', component: AppleRedirectPage, meta: { requiresLogin: false },
+    },
+    {
+      name: 'logtoRedirect', path: 'logto-redirect', component: LogtoRedirectPage, meta: { requiresLogin: false },
     },
     {
       name: 'clearBrowserData', path: 'clear-browser-data', component: ClearBrowserDataPage, meta: { requiresLogin: false },

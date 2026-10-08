@@ -46,7 +46,9 @@
 import axios from 'axios';
 import hello from 'hellojs';
 import { SUPPORTED_SOCIAL_NETWORKS } from '@/../../common/script/constants';
-import { buildAppleAuthUrl } from '@/libs/auth';
+import {
+  buildAppleAuthUrl, getLogtoConfig, LOGTO_SIGN_IN_URL, LOGTO_REDIRECT_TO_KEY,
+} from '@/libs/auth';
 import { mapState } from '@/libs/store';
 import googleIcon from '@/assets/svg/google.svg?raw';
 import appleIcon from '@/assets/svg/apple_black.svg?raw';
@@ -73,12 +75,11 @@ export default {
       content: 'content',
     }),
   },
-  mounted () {
-    this.SOCIAL_AUTH_NETWORKS = SUPPORTED_SOCIAL_NETWORKS;
-
-    this.$store.dispatch('common:setTitle', {
-      section: this.$t('settings'),
-    });
+  async mounted () {
+    const logto = await getLogtoConfig();
+    this.SOCIAL_AUTH_NETWORKS = SUPPORTED_SOCIAL_NETWORKS
+      .filter(network => network.key !== 'logto' || logto.enabled)
+      .map(network => (network.key === 'logto' ? { ...network, name: logto.name } : network));
 
     hello.init({
       google: import.meta.env.GOOGLE_CLIENT_ID, // eslint-disable-line no-process-env
@@ -105,6 +106,9 @@ export default {
     async socialAuth (network) {
       if (network === 'apple') {
         window.location.href = buildAppleAuthUrl();
+      } else if (network === 'logto') {
+        window.sessionStorage.setItem(LOGTO_REDIRECT_TO_KEY, this.$route.fullPath);
+        window.location.href = LOGTO_SIGN_IN_URL;
       } else {
         const auth = await hello(network).login({ scope: 'email' });
         await this.$store.dispatch('auth:socialAuth', {
@@ -129,7 +133,7 @@ export default {
       });
     },
     isConnected (networkKeyToCheck) {
-      return !!this.user.auth[networkKeyToCheck].id;
+      return !!(this.user.auth[networkKeyToCheck] && this.user.auth[networkKeyToCheck].id);
     },
     allowedToConnect (networkKeyToCheck) {
       if (networkKeyToCheck === 'facebook') {

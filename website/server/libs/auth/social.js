@@ -8,6 +8,7 @@ import {
   loginRes,
 } from './utils';
 import { appleProfile } from './apple';
+import { isLogtoEnabled, logtoProfile } from './logto';
 import { model as User } from '../../models/user';
 import { model as EmailUnsubscription } from '../../models/emailUnsubscription';
 import { sendTxn as sendTxnEmail } from '../email';
@@ -30,7 +31,9 @@ export async function socialEmailToLocal (user) {
   const socialEmail = (user.auth.google && user.auth.google.emails
     && user.auth.google.emails[0].value)
     || (user.auth.facebook && user.auth.facebook.emails && user.auth.facebook.emails[0].value)
-    || (user.auth.apple && user.auth.apple.emails && user.auth.apple.emails[0].value);
+    || (user.auth.apple && user.auth.apple.emails && user.auth.apple.emails[0].value)
+    || (user.auth.logto && user.auth.logto.emails && user.auth.logto.emails[0]
+      && user.auth.logto.emails[0].value);
   if (socialEmail) {
     const conflictingUser = await User.findOne(
       { 'auth.local.email': socialEmail },
@@ -41,23 +44,41 @@ export async function socialEmailToLocal (user) {
   return undefined;
 }
 
-export async function loginSocial (req, res) { // eslint-disable-line import/prefer-default-export
+// Defaults for newly registered users of this self-hosted instance: everyone gets the
+// subscription features and the first registered user becomes an admin.
+export async function newUserDefaults () {
+  return {
+    'purchased.plan': {
+      planId: 'basic',
+      customerId: 'habitrpg',
+      dateCreated: new Date(),
+      dateUpdated: new Date(),
+      gemsBought: 0,
+    },
+    'permissions.fullAccess': !await User.findOne().exec(),
+  };
+}
+
+export async function loginSocial (req, res) {
   let existingUser = res.locals.user;
-  const { network, allowRegister = true, username = generateUsername() } = req.body;
+  const { network, allowRegister = true } = req.body;
 
   const isSupportedNetwork = common.constants.SUPPORTED_SOCIAL_NETWORKS
     .find(supportedNetwork => supportedNetwork.key === network);
   if (!isSupportedNetwork) throw new BadRequest(res.t('unsupportedNetwork'));
+  if (network === 'logto' && !isLogtoEnabled()) throw new BadRequest(res.t('unsupportedNetwork'));
 
   let profile = {};
   if (network === 'apple') {
     profile = await appleProfile(req);
+  } else if (network === 'logto') {
+    profile = logtoProfile(req);
   } else {
     const accessToken = req.body.authResponse.access_token;
     profile = await _passportProfile(network, accessToken);
   }
 
-  if (!profile.id) throw new BadRequest(res.t('invalidData'));
+  if (!profile.id) throw new BadRequest(res.t(network === 'logto' ? 'logtoSignInFailed' : 'invalidData'));
 
   let user = await User.findOne({
     [`auth.${network}.id`]: profile.id,
@@ -101,6 +122,7 @@ export async function loginSocial (req, res) { // eslint-disable-line import/pre
     throw new NotFound(res.t('userNotFound'));
   }
 
+  const username = req.body.username || profile.username || generateUsername();
   let sanitizedUsername = username.replace(/[^a-zA-Z0-9_-]/g, '');
   const issues = verifyUsername(sanitizedUsername, res, true);
   if (issues.length > 0) {
@@ -142,6 +164,7 @@ export async function loginSocial (req, res) { // eslint-disable-line import/pre
       flags: {
         verifiedUsername: true,
       },
+      ...await newUserDefaults(),
     };
     user = new User(user);
     user.registeredThrough = req.headers['x-client']; // Not saved, used to create the correct tasks based on the device used

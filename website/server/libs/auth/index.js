@@ -14,6 +14,7 @@ import { decrypt } from '../encryption';
 import { model as Group } from '../../models/group';
 import {
   loginSocial,
+  newUserDefaults,
   socialEmailToLocal,
 } from './social';
 import { loginRes } from './utils';
@@ -160,14 +161,7 @@ async function registerLocal (req, res, { isV3 = false }) {
         passwordHashMethod: 'bcrypt',
       },
     },
-    'purchased.plan': {
-      planId: 'basic',
-      customerId: 'habitrpg',
-      dateCreated: new Date(),
-      dateUpdated: new Date(),
-      gemsBought: 0,
-    },
-    'permissions.fullAccess': ! await User.findOne().exec(), // admin access for the first registered user
+    ...await newUserDefaults(),
     preferences: {
       language: req.language,
     },
@@ -177,9 +171,11 @@ async function registerLocal (req, res, { isV3 = false }) {
   };
 
   if (existingUser) {
-    const networks = common.constants.SUPPORTED_SOCIAL_NETWORKS;
     // need to insert FB here to allow users who only have FB auth to connect local auth.
-    networks.push({ key: 'facebook', name: 'Facebook' });
+    const networks = [
+      ...common.constants.SUPPORTED_SOCIAL_NETWORKS,
+      { key: 'facebook', name: 'Facebook' },
+    ];
     const hasSocialAuth = networks.find(network => {
       if (existingUser.auth.hasOwnProperty(network.key)) { // eslint-disable-line no-prototype-builtins, max-len
         return existingUser.auth[network.key].id;

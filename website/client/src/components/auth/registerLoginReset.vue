@@ -20,6 +20,21 @@
           ></a>
         </div>
       </div>
+      <template v-if="logto.enabled">
+        <div class="form-group">
+          <div
+            class="btn btn-secondary social-button"
+            @click="logtoSignIn()"
+          >
+            <div class="text">
+              {{ $t('signUpWithSocial', {social: logto.name}) }}
+            </div>
+          </div>
+        </div>
+        <div class="strike mb-3">
+          <span>{{ $t('or') }}</span>
+        </div>
+      </template>
       <div
         v-if="!registering"
         class="form-group"
@@ -509,6 +524,7 @@ import exclamation from '@/assets/svg/exclamation.svg?raw';
 import habiticaIcon from '@/assets/svg/habitica-logo.svg?raw';
 import googleIcon from '@/assets/svg/google.svg?raw';
 import appleIcon from '@/assets/svg/apple_black.svg?raw';
+import { getLogtoConfig, LOGTO_SIGN_IN_URL, LOGTO_REDIRECT_TO_KEY } from '@/libs/auth';
 
 export default {
   components: {
@@ -523,6 +539,7 @@ export default {
         code: null,
       },
       usernameIssues: [],
+      logto: { enabled: false, name: 'Logto' },
     };
 
     data.icons = Object.freeze({
@@ -585,15 +602,21 @@ export default {
       this.validateUsername(this.username);
     },
   },
-  mounted () {
+  async mounted () {
     this.forgotPassword = this.$route.path.startsWith('/forgot-password');
     if (this.forgotPassword) {
       if (this.$route.query.email) {
         this.username = this.$route.query.email;
       }
     }
+    this.logto = await getLogtoConfig();
   },
   methods: {
+    logtoSignIn () {
+      const redirectTo = this.sanitizeRedirect(this.$route.query.redirectTo);
+      window.sessionStorage.setItem(LOGTO_REDIRECT_TO_KEY, redirectTo);
+      window.location.href = LOGTO_SIGN_IN_URL;
+    },
     async login () {
       await this.$store.dispatch('auth:login', {
         username: this.username,

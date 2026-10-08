@@ -25,17 +25,19 @@
         </tr>
       </table>
 
-      <!--<h2 v-once>
-        {{ $t('loginMethods') }}
-      </h2>
+      <template v-if="logtoEnabled">
+        <h2 v-once>
+          {{ $t('loginMethods') }}
+        </h2>
 
-      <table class="table">
-        <LoginMethods />
-        <tr>
-          <td colspan="3">
-          </td>
-        </tr>
-      </table>-->
+        <table class="table">
+          <LoginMethods />
+          <tr>
+            <td colspan="3">
+            </td>
+          </tr>
+        </table>
+      </template>
 
       <h2 v-once>
         {{ $t('site') }}
@@ -97,7 +99,8 @@ import DayStartAdjustmentSetting from './settingRows/dayStartAdjustmentSetting.v
 import AudioThemeSetting from '@/pages/settings/settingRows/audioThemeSetting.vue';
 import ClassSetting from '@/pages/settings/settingRows/classSetting.vue';
 import FixValuesSetting from '@/pages/settings/settingRows/fixValuesSetting.vue';
-// import LoginMethods from '@/pages/settings/settingRows/loginMethods.vue';
+import LoginMethods from '@/pages/settings/settingRows/loginMethods.vue';
+import { getLogtoConfig } from '@/libs/auth';
 import { GenericUserPreferencesMixin } from '@/pages/settings/components/genericUserPreferencesMixin';
 import { mapState } from '@/libs/store';
 import SleepMode from '@/pages/settings/settingRows/sleepMode.vue';
@@ -105,7 +108,7 @@ import SleepMode from '@/pages/settings/settingRows/sleepMode.vue';
 export default {
   components: {
     SleepMode,
-    // LoginMethods,
+    LoginMethods,
     FixValuesSetting,
     ClassSetting,
     AudioThemeSetting,
@@ -120,20 +123,26 @@ export default {
     UserNameSetting,
   },
   mixins: [notificationsMixin, GenericUserPreferencesMixin],
+  beforeRouteLeave (_, __, next) {
+    sharedInlineSettingStore.markAsClosed();
+    next();
+  },
+  data () {
+    return {
+      logtoEnabled: false,
+    };
+  },
   computed: {
     ...mapState({
       user: 'user.data',
     }),
   },
-  beforeRouteLeave (_, __, next) {
-    sharedInlineSettingStore.markAsClosed();
-    next();
-  },
-  mounted () {
+  async mounted () {
     this.$store.dispatch('common:setTitle', {
       section: this.$t('settings'),
       subSection: this.$t('generalSettings'),
     });
+    this.logtoEnabled = (await getLogtoConfig()).enabled;
   },
 };
 </script>

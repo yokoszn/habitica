@@ -145,6 +145,8 @@
   "modelNotFound": "This model does not exist.",
   "signUpWithSocial": "Continue with <%= social %>",
   "loginWithSocial": "Log in with <%= social %>",
+  "logtoRedirecting": "Signing you in...",
+  "logtoSignInFailed": "Signing in failed. Please try again.",
   "confirmPassword": "Confirm Password",
   "usernameLimitations": "Usernames can be changed at any time. They must be 1 to 20 characters, containing only letters a to z, numbers 0 to 9, hyphens, or underscores.",
   "usernamePlaceholder": "e.g., HabitRabbit",
