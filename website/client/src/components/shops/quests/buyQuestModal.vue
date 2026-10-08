@@ -416,6 +416,7 @@
 
 <script>
 import moment from 'moment';
+import getItemInfo from '@/../../common/script/libs/getItemInfo';
 import { mapState } from '@/libs/store';
 
 import svgClock from '@/assets/svg/clock.svg?raw';
@@ -439,8 +440,6 @@ import numberIncrement from '@/components/shared/numberIncrement';
 import questDialogContent from './questDialogContent';
 import QuestRewards from './questRewards';
 import CloseIcon from '../../shared/closeIcon';
-
-import getItemInfo from '@/../../common/script/libs/getItemInfo';
 
 export default {
   components: {

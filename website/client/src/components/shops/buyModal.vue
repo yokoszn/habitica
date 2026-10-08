@@ -68,8 +68,8 @@
           :class="{ 'gray-100': item.locked }"
         >
           <div
-            class="lock-bubble mr-2 d-flex justify-content-center align-items-center"
             v-if="item.locked"
+            class="lock-bubble mr-2 d-flex justify-content-center align-items-center"
           >
             <div
               class="svg svg-icon icon-12 gray-50 color"
@@ -629,6 +629,7 @@ import moment from 'moment';
 import planGemLimits from '@/../../common/script/libs/planGemLimits';
 import eggs from '@/../../common/script/content/eggs';
 import hatchingPotions from '@/../../common/script/content/hatching-potions';
+import getItemInfo from '@/../../common/script/libs/getItemInfo';
 import { avatarEditorUtilities } from '@/mixins/avatarEditUtilities';
 import numberInvalid from '@/mixins/numberInvalid';
 import spellsMixin from '@/mixins/spells';
@@ -658,8 +659,6 @@ import EquipmentAttributesGrid from '../inventory/equipment/attributesGrid.vue';
 
 import Item from '@/components/inventory/item';
 import Avatar from '@/components/avatar';
-
-import getItemInfo from '@/../../common/script/libs/getItemInfo';
 
 const dropEggs = eggs.drops;
 const dropPotions = hatchingPotions.drops;

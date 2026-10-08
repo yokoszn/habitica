@@ -155,7 +155,7 @@ if (IS_PROD) {
 
 // exports a public interface insteaf of accessing directly the logger module
 const loggerInterface = {
-  info(...args) {
+  info (...args) {
     if (!_config.loggingEnabled) return;
 
     const [_message, _data] = args;
@@ -185,7 +185,7 @@ const loggerInterface = {
   // an Error object (required)
   // and an object of additional data to log alongside the error
   // If the first argument isn't an Error, it'll call logger.error with all the arguments supplied
-  error(...args) {
+  error (...args) {
     if (!_config.loggingEnabled) return;
     const [err, _errorData] = args;
 

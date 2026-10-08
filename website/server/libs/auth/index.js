@@ -1,4 +1,5 @@
 import moment from 'moment';
+import nconf from 'nconf';
 import {
   BadRequest,
   NotAuthorized,
@@ -20,7 +21,6 @@ import {
 import { loginRes } from './utils';
 import { verifyUsername } from '../user/validation';
 import { trackRegistrationEvent } from '../localAnalytics';
-import nconf from 'nconf';
 
 const INVITE_ONLY = nconf.get('INVITE_ONLY') === 'true';
 const USERNAME_LENGTH_MIN = 1;
@@ -193,9 +193,11 @@ async function registerLocal (req, res, { isV3 = false }) {
 
   // we check for partyInvite for backward compatibility
   if (req.query.groupInvite || req.query.partyInvite) {
-    const success = await _handleGroupInvitation(newUser, req.query.groupInvite || req.query.partyInvite);
-    if (INVITE_ONLY && !success)
-      throw new NotAuthorized(res.t('inviteOnly'));
+    const success = await _handleGroupInvitation(
+      newUser,
+      req.query.groupInvite || req.query.partyInvite,
+    );
+    if (INVITE_ONLY && !success) throw new NotAuthorized(res.t('inviteOnly'));
   } else if (INVITE_ONLY) {
     throw new NotAuthorized(res.t('inviteOnly'));
   }
