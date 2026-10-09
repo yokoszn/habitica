@@ -54,6 +54,7 @@ runs:
       env:
         VERSION: ${{ inputs.version }}
     - name: Build and Push Server Develop
+      id: server_develop
       uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
       if: inputs.create_release != 'true'
       with:
@@ -63,7 +64,10 @@ runs:
         tags: ${{ inputs.registry_user }}/habitica-server:${{ inputs.version }}
         cache-from: type=registry,ref=${{ inputs.registry_user }}/habitica-server:buildcache
         cache-to: type=registry,ref=${{ inputs.registry_user }}/habitica-server:buildcache,mode=max
+        sbom: true
+        provenance: mode=max
     - name: Build and Push Server Release
+      id: server_release
       uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
       if: inputs.create_release == 'true'
       with:
@@ -73,7 +77,10 @@ runs:
         tags: ${{ inputs.registry_user }}/habitica-server:latest,${{ inputs.registry_user }}/habitica-server:${{ steps.version_major.outputs.version_major }},${{ inputs.registry_user }}/habitica-server:${{ inputs.version }}
         cache-from: type=registry,ref=${{ inputs.registry_user }}/habitica-server:buildcache
         cache-to: type=registry,ref=${{ inputs.registry_user }}/habitica-server:buildcache,mode=max
+        sbom: true
+        provenance: mode=max
     - name: Build and Push Client Develop
+      id: client_develop
       uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
       if: inputs.create_release != 'true'
       with:
@@ -83,7 +90,10 @@ runs:
         tags: ${{ inputs.registry_user }}/habitica-client:${{ inputs.version }}
         cache-from: type=registry,ref=${{ inputs.registry_user }}/habitica-server:buildcache
         cache-to: type=registry,ref=${{ inputs.registry_user }}/habitica-server:buildcache,mode=max
+        sbom: true
+        provenance: mode=max
     - name: Build and Push Client Release
+      id: client_release
       uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
       if: inputs.create_release == 'true'
       with:
@@ -93,6 +103,23 @@ runs:
         tags: ${{ inputs.registry_user }}/habitica-client:latest,${{ inputs.registry_user }}/habitica-client:${{ steps.version_major.outputs.version_major }},${{ inputs.registry_user }}/habitica-client:${{ inputs.version }}
         cache-from: type=registry,ref=${{ inputs.registry_user }}/habitica-server:buildcache
         cache-to: type=registry,ref=${{ inputs.registry_user }}/habitica-server:buildcache,mode=max
+        sbom: true
+        provenance: mode=max
+    # Keyless signatures (Sigstore), verifiable with:
+    # cosign verify <image> --certificate-identity-regexp 'https://github.com/<owner>/<repo>/' \
+    #   --certificate-oidc-issuer https://token.actions.githubusercontent.com
+    - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+      if: inputs.push_containers == 'true'
+    - name: Sign the container images
+      if: inputs.push_containers == 'true'
+      shell: bash
+      env:
+        REGISTRY_USER: ${{ inputs.registry_user }}
+        SERVER_DIGEST: ${{ steps.server_develop.outputs.digest || steps.server_release.outputs.digest }}
+        CLIENT_DIGEST: ${{ steps.client_develop.outputs.digest || steps.client_release.outputs.digest }}
+      run: |
+        cosign sign --yes "docker.io/${REGISTRY_USER}/habitica-server@${SERVER_DIGEST}"
+        cosign sign --yes "docker.io/${REGISTRY_USER}/habitica-client@${CLIENT_DIGEST}"
     - name: Create Release Archives
       if: inputs.create_release == 'true'
       env:

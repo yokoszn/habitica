@@ -114,6 +114,45 @@ jobs:
           sarif_file: trivy.sarif
           category: trivy
 
+  container-image:
+    name: Trivy (server container image)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: Build the server image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          target: server
+          platforms: linux/amd64
+          load: true
+          push: false
+          tags: habitica-server:scan
+      - name: Check that the server runs as non-root
+        run: test "$(docker run --rm --entrypoint id habitica-server:scan -u)" != "0"
+      - name: Scan the image
+        uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
+        with:
+          version: v0.74.0
+          scan-type: image
+          image-ref: habitica-server:scan
+          scanners: vuln,secret
+          format: sarif
+          output: trivy-image.sarif
+          exit-code: "0"
+      - uses: github/codeql-action/upload-sarif@88585263c0627ee42c0e1c5143a112c8d6f4aa18 # v4.38.2
+        if: always() && hashFiles('trivy-image.sarif') != ''
+        with:
+          sarif_file: trivy-image.sarif
+          category: trivy-image
+
   zizmor:
     name: zizmor (GitHub Actions)
     runs-on: ubuntu-latest
