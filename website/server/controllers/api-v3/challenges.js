@@ -965,6 +965,18 @@ api.cloneChallenge = {
       && challengeToClone.leader !== user._id;
     if (isFlaggedForNonAdminUser) throw new NotFound(res.t('challengeNotFound'));
 
+    // Cloning copies all tasks of the challenge, so it needs the same rights as viewing it.
+    // canView handles a missing group (e.g. the leader left it).
+    const sourceGroup = await Group.getGroup({
+      user,
+      groupId: challengeToClone.group,
+      fields: '_id type privacy purchased',
+      optionalMembership: true,
+    });
+    if (!challengeToClone.canView(user, sourceGroup) && !challengeToClone.canModify(user)) {
+      throw new NotFound(res.t('challengeNotFound'));
+    }
+
     const { savedChal } = await createChallenge(user, req, res);
 
     const challengeTaskIds = [
