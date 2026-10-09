@@ -109,6 +109,12 @@ export async function loginSocial (req, res) {
   if (!existingUser && email) {
     // TODO we load the whole user object here. Is that necessary?
     existingUser = await User.findOne({ 'auth.local.email': email }).exec();
+    // Habitica does not verify email addresses, so the existing account may have been registered
+    // by someone else with the victim's address in advance. Linking it automatically would give
+    // them access, so users have to log in and connect Logto in the settings instead.
+    if (existingUser && network === 'logto') {
+      throw new NotAuthorized(res.t('logtoAccountExists'));
+    }
   }
 
   if (!allowRegister && !existingUser) {
