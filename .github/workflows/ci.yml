@@ -108,7 +108,7 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
       - name: Start MongoDB replica set
-        uses: supercharge/mongodb-github-action@0db69880d3c2305e6297f8edbb8f0a82139f754c # 1.12.1
+        uses: supercharge/mongodb-github-action@315db7fe45ac2880b7758f1933e6e5d59afd5e94 # 1.12.1
         with:
           mongodb-version: "7.0"
           mongodb-replica-set: rs
