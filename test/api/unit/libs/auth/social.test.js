@@ -50,6 +50,19 @@ describe('saveNewUser', () => {
       expect(user.permissions.fullAccess).to.not.equal(true);
     });
 
+    it('makes a concurrent registration the admin if the other one could not be saved', async () => {
+      const failingUser = generateUser();
+      sandbox.stub(failingUser, 'save').rejects(new Error('could not save'));
+
+      const [failed, saved] = await Promise.allSettled([
+        saveNewUser(failingUser),
+        saveNewUser(generateUser()),
+      ]);
+
+      expect(failed.status).to.equal('rejected');
+      expect(saved.value.permissions.fullAccess).to.equal(true);
+    });
+
     it('lets the next user become the admin if the first one could not be saved', async () => {
       const failingUser = generateUser();
       sandbox.stub(failingUser, 'save').rejects(new Error('could not save'));
