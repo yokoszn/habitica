@@ -27,6 +27,9 @@ process.on('SIGUSR2', () => {
 
 const logger = require('./libs/logger').default;
 
+// Has to run before anything that reads the session and encryption secrets is loaded
+require('./libs/secrets').ensureSecrets().forEach(warning => logger.info(`WARNING: ${warning}`));
+
 const { ENABLE_CLUSTER, CORES } = require('./libs/config');
 
 // Setup the cluster module

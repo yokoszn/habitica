@@ -10,6 +10,10 @@ services:
       - NODE_DB_URI=mongodb://mongo/habitica # this only needs to be adapted if using a separate database
       - BASE_URL=http://127.0.0.1:8080 # change this to the URL under which your instance will be reachable
       - INVITE_ONLY=false # change to `true` after registration of initial users, to restrict further registrations
+      # Secrets for sessions and emailed links. Generate each with `openssl rand -hex 32` and keep them
+      # stable: if they are missing, random values are used that change with every restart.
+      - SESSION_SECRET=${SESSION_SECRET:-}
+      - SESSION_SECRET_KEY=${SESSION_SECRET_KEY:-}
     networks:
       - habitica
     ports:
