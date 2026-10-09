@@ -246,4 +246,55 @@ describe('GET /challenges/:challengeId/members', () => {
     const response = await user.get(`/challenges/${challenge._id}/members?search=${nameToSearch}`);
     expect(response[0].auth.local.username).to.eql(firstUsername);
   });
+
+  context('req.query.search handling', () => {
+    let challenge;
+
+    beforeEach(async () => {
+      const group = await generateGroup(user, { type: 'party', name: generateUUID() });
+      challenge = await generateChallenge(user, group);
+      await user.post(`/challenges/${challenge._id}/join`);
+
+      const usersToGenerate = [];
+      for (let i = 0; i < 3; i += 1) {
+        usersToGenerate.push(generateUser({
+          challenges: [challenge._id],
+          'auth.local.username': `${i}username`,
+        }));
+      }
+      await Promise.all(usersToGenerate);
+    });
+
+    it('matches regular expression characters literally', async () => {
+      const response = await user.get(`/challenges/${challenge._id}/members`, undefined, { search: '.*' });
+      expect(response).to.eql([]);
+    });
+
+    it('does not fail on an invalid regular expression', async () => {
+      const response = await user.get(`/challenges/${challenge._id}/members`, undefined, { search: '(' });
+      expect(response).to.eql([]);
+    });
+
+    it('searches case-insensitively', async () => {
+      const response = await user.get(`/challenges/${challenge._id}/members`, undefined, { search: '0USER' });
+      expect(response.length).to.eql(1);
+      expect(response[0].auth.local.username).to.eql('0username');
+    });
+
+    it('returns an error if req.query.search is not a string', async () => {
+      await expect(user.get(`/challenges/${challenge._id}/members?search[$ne]=x`)).to.eventually.be.rejected.and.eql({
+        code: 400,
+        error: 'BadRequest',
+        message: t('invalidReqParams'),
+      });
+    });
+
+    it('returns an error if req.query.search is too long', async () => {
+      await expect(user.get(`/challenges/${challenge._id}/members`, undefined, { search: 'a'.repeat(101) })).to.eventually.be.rejected.and.eql({
+        code: 400,
+        error: 'BadRequest',
+        message: t('invalidReqParams'),
+      });
+    });
+  });
 });

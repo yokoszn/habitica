@@ -1,4 +1,5 @@
 import _ from 'lodash';
+import escapeRegExp from 'lodash/escapeRegExp';
 import {
   model as User,
   publicFields as memberFields,
@@ -7,7 +8,10 @@ import {
 import { model as Challenge } from '../../models/challenge';
 import { model as Group } from '../../models/group';
 import * as Tasks from '../../models/task';
-import { NotFound } from '../errors';
+import { BadRequest, NotFound } from '../errors';
+
+// usernames are at most 20 characters, longer searches can never match
+const MAX_SEARCH_LENGTH = 100;
 
 async function getMembersTasksForChallenge (members, challenge) {
   const challengeTasks = await Tasks.Task.find({
@@ -31,8 +35,12 @@ export async function handleGetMembersForChallenge (req, res) {
   if (validationErrors) throw validationErrors;
 
   const { challengeId } = req.params;
-  const { lastId } = req.query;
+  const { lastId, search } = req.query;
   const { user } = res.locals;
+
+  if (search && (typeof search !== 'string' || search.length > MAX_SEARCH_LENGTH)) {
+    throw new BadRequest(res.t('invalidReqParams'));
+  }
 
   const challenge = await Challenge.findById(challengeId).select('_id type leader group').exec();
   if (!challenge) throw new NotFound(res.t('challengeNotFound'));
@@ -60,8 +68,9 @@ export async function handleGetMembersForChallenge (req, res) {
     addComputedStats = true;
   }
 
-  if (req.query.search) {
-    query['auth.local.username'] = { $regex: req.query.search };
+  if (search) {
+    // Escape the search so it is matched literally, like the group member search
+    query['auth.local.username'] = { $regex: new RegExp(escapeRegExp(search), 'i') };
   }
 
   if (lastId) query._id = { $gt: lastId };
