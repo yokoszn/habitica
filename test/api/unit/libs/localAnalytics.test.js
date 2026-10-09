@@ -32,7 +32,7 @@ describe('localAnalytics', () => {
     });
 
     it('creates a registration event when a user registers', async () => {
-      user._id = '00000000-0000-0000-0000-000000000001';
+      user._id = '00000000-0000-4000-8000-000000000001';
       await localAnalytics.trackRegistrationEvent({ user, ipAddress: '127.0.0.1' });
 
       const registrationEvents = await RegistrationEventModel.find({ userId: user._id });
@@ -42,7 +42,7 @@ describe('localAnalytics', () => {
     });
 
     it('saves the correct data to the database', async () => {
-      user._id = '00000000-0000-0000-0000-000000000002';
+      user._id = '00000000-0000-4000-8000-000000000002';
       user.auth.google = { id: 'abc', emails: [{ value: 'email@example.com' }] };
       await localAnalytics.trackRegistrationEvent({ user, ipAddress: '127.0.0.2' });
 
@@ -59,7 +59,7 @@ describe('localAnalytics', () => {
     });
 
     it('creates a subscription event when a user subscribes', async () => {
-      user._id = '00000000-0000-0000-0000-000000000003';
+      user._id = '00000000-0000-4000-8000-000000000003';
       await localAnalytics.trackSubscriptionEvent({
         eventType: 'subscribed',
         user,
@@ -78,7 +78,7 @@ describe('localAnalytics', () => {
     });
 
     it('creates a subscription event with cancellation reason when a user cancels', async () => {
-      user._id = '00000000-0000-0000-0000-000000000004';
+      user._id = '00000000-0000-4000-8000-000000000004';
       await localAnalytics.trackSubscriptionEvent({
         eventType: 'cancelled',
         user,
