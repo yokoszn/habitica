@@ -147,6 +147,7 @@
   "loginWithSocial": "Log in with <%= social %>",
   "logtoRedirecting": "Signing you in...",
   "logtoSignInFailed": "Signing in failed. Please try again.",
+  "logtoAccountExists": "An account with this email address exists already. Log in with your password and connect single sign-on in the settings.",
   "confirmPassword": "Confirm Password",
   "usernameLimitations": "Usernames can be changed at any time. They must be 1 to 20 characters, containing only letters a to z, numbers 0 to 9, hyphens, or underscores.",
   "usernamePlaceholder": "e.g., HabitRabbit",

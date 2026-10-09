@@ -1,6 +1,14 @@
+import { v4 as generateUUID } from 'uuid';
+import * as logtoLib from '../../../../../website/server/libs/auth/logto';
+import { loginSocial } from '../../../../../website/server/libs/auth/social';
+import { model as User } from '../../../../../website/server/models/user';
 import {
-  logtoProfile,
-} from '../../../../../website/server/libs/auth/logto';
+  generateReq,
+  generateRes,
+  generateUser,
+} from '../../../../helpers/api-unit.helper';
+
+const { logtoProfile } = logtoLib;
 
 describe('Logto auth', () => {
   describe('logtoProfile', () => {
@@ -52,5 +60,64 @@ describe('Logto auth', () => {
     it('returns an empty profile without a session', () => {
       expect(logtoProfile({})).to.eql({});
     });
+  });
+});
+
+describe('loginSocial with Logto', () => {
+  let req;
+  let res;
+
+  beforeEach(() => {
+    sandbox.stub(logtoLib, 'isLogtoEnabled').returns(true);
+    req = generateReq({
+      body: { network: 'logto' },
+      url: '/api/v4/user/auth/social',
+      language: 'en',
+      session: {
+        logtoProfile: {
+          id: `logto-${generateUUID()}`,
+          email: 'logto-user@example.com',
+          username: 'logtouser',
+          createdAt: Date.now(),
+        },
+      },
+    });
+    res = generateRes({ respond: sandbox.stub() });
+    res.locals.user = undefined;
+  });
+
+  it('registers a new user', async () => {
+    await loginSocial(req, res);
+
+    expect(res.respond).to.have.been.calledOnce;
+    const [status, data] = res.respond.firstCall.args;
+    expect(status).to.equal(200);
+    expect(data.newUser).to.equal(true);
+    const user = await User.findById(data.id).exec();
+    expect(user.auth.logto.id).to.match(/^logto-/);
+    expect(user.auth.local.email).to.equal('logto-user@example.com');
+  });
+
+  it('does not link to an existing account with the same email address', async () => {
+    const existing = generateUser({ 'auth.local.email': 'logto-user@example.com' });
+    await existing.save();
+
+    await expect(loginSocial(req, res)).to.eventually.be.rejected.and.have.property('name', 'NotAuthorized');
+
+    const reloaded = await User.findById(existing._id).exec();
+    expect(reloaded.auth.logto.id).to.not.exist;
+    expect(res.respond).to.not.have.been.called;
+  });
+
+  it('connects Logto to the logged in user', async () => {
+    const existing = generateUser({ 'auth.local.email': 'logto-user@example.com' });
+    await existing.save();
+    res.locals.user = existing;
+    const logtoId = req.session.logtoProfile.id;
+
+    await loginSocial(req, res);
+
+    const reloaded = await User.findById(existing._id).exec();
+    expect(reloaded.auth.logto.id).to.equal(logtoId);
   });
 });
