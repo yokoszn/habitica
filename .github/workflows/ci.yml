@@ -1,0 +1,151 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - self-host
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  NODE_VERSION: "22"
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            website/client/package-lock.json
+      # Lifecycle scripts are skipped so that dependencies cannot run code at install time.
+      - name: Install dependencies
+        run: |
+          npm ci --ignore-scripts
+          npm ci --ignore-scripts --prefix website/client
+      # Some tests import config.json, which the import rules resolve
+      - run: cp config.json.example config.json
+      - name: Lint server and shared code
+        run: npx eslint --ext .js .
+      - name: Lint client
+        run: npm run lint-no-fix
+        working-directory: website/client
+
+  test:
+    name: Tests (common, content, client)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            website/client/package-lock.json
+      - name: Install dependencies
+        run: |
+          npm ci --ignore-scripts
+          npm rebuild bcrypt
+          npm ci --ignore-scripts --prefix website/client
+      - run: cp config.json.example config.json
+      - name: Sanity tests
+        run: npx mocha test/sanity --recursive
+        env:
+          NODE_ENV: test
+      - name: Common tests
+        run: npx mocha test/common --recursive
+        env:
+          NODE_ENV: test
+      - name: Content tests
+        run: npx mocha test/content --recursive
+        env:
+          NODE_ENV: test
+      - name: Client unit tests
+        run: npx vitest run
+        working-directory: website/client
+
+  api-tests:
+    # Many API tests still cover upstream features that this fork removed (payments,
+    # Mandrill emails, push notifications), so they fail. They run for visibility,
+    # but do not block merging until they are triaged.
+    name: API tests (informational)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        suite:
+          - test/api/unit
+          - test/api/v3/integration
+          - test/api/v4
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Start MongoDB replica set
+        uses: supercharge/mongodb-github-action@315db7fe45ac2880b7758f1933e6e5d59afd5e94 # 1.12.1
+        with:
+          mongodb-version: "7.0"
+          mongodb-replica-set: rs
+      - name: Install dependencies
+        run: |
+          npm ci --ignore-scripts
+          npm rebuild bcrypt
+      - run: cp config.json.example config.json
+      - name: Run ${{ matrix.suite }}
+        run: npx mocha "$SUITE" --recursive --require ./test/helpers/start-server
+        env:
+          SUITE: ${{ matrix.suite }}
+          NODE_ENV: test
+          INVITE_ONLY: "false"
+
+  build:
+    name: Production build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            website/client/package-lock.json
+      - name: Install dependencies
+        run: |
+          npm ci --ignore-scripts
+          npm ci --ignore-scripts --prefix website/client
+      - run: cp config.json.example config.json
+      - name: Build server
+        run: npx gulp build:prod
+      - name: Build client
+        run: npm run build
+        working-directory: website/client

@@ -1,5 +1,9 @@
 # Habitica Self-Hosted
 
+[![CI](https://github.com/yokoszn/habitica/actions/workflows/ci.yml/badge.svg?branch=self-host)](https://github.com/yokoszn/habitica/actions/workflows/ci.yml)
+[![Security scans](https://github.com/yokoszn/habitica/actions/workflows/security.yml/badge.svg?branch=self-host)](https://github.com/yokoszn/habitica/actions/workflows/security.yml)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/yokoszn/habitica/badge)](https://scorecard.dev/viewer/?uri=github.com/yokoszn/habitica)
+
 Adaptions and infrastructure to facilitate self-hosting of the habit-building program [Habitica](https://habitica.com). It is based on the source code and assets of the [Habitica Repository](https://github.com/HabitRPG/habitica), hence the [LICENSE](https://github.com/HabitRPG/habitica/blob/develop/LICENSE) from there applies here and to the adaptions in this repository as well.
 
 ![Screenshot of the Habitica Web Client](website/client/public/static/presskit/Samples/Website/Market.png)

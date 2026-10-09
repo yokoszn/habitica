@@ -23,7 +23,6 @@ import { // eslint-disable-line import/no-cycle
 import {
   InternalServerError,
   BadRequest,
-  NotAuthorized,
 } from '../libs/errors';
 import baseModel from '../libs/baseModel';
 import { sendTxn as sendTxnEmail } from '../libs/email'; // eslint-disable-line import/no-cycle

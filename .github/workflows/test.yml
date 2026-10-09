@@ -10,13 +10,14 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node-version: [21.x]
+        node-version: [22.x]
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         fetch-depth: 1
+        persist-credentials: false
     - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
       with:
         node-version: ${{ matrix.node-version }}
     - run: sudo apt update
@@ -34,13 +35,14 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node-version: [21.x]
+        node-version: [22.x]
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         fetch-depth: 1
+        persist-credentials: false
     - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
       with:
         node-version: ${{ matrix.node-version }}
     - run: sudo apt update
@@ -58,13 +60,14 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node-version: [21.x]
+        node-version: [22.x]
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         fetch-depth: 1
+        persist-credentials: false
     - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
       with:
         node-version: ${{ matrix.node-version }}
     - run: sudo apt update
@@ -82,13 +85,14 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node-version: [21.x]
+        node-version: [22.x]
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         fetch-depth: 1
+        persist-credentials: false
     - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
       with:
         node-version: ${{ matrix.node-version }}
     - run: sudo apt update
@@ -106,19 +110,20 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node-version: [21.x]
+        node-version: [22.x]
         mongodb-version: [7.0]
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         fetch-depth: 1
+        persist-credentials: false
     - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
       with:
         node-version: ${{ matrix.node-version }}
 
     - name: Start MongoDB ${{ matrix.mongodb-version }} Replica Set
-      uses: supercharge/mongodb-github-action@1.11.0
+      uses: supercharge/mongodb-github-action@315db7fe45ac2880b7758f1933e6e5d59afd5e94 # 1.12.1
       with:
         mongodb-version: ${{ matrix.mongodb-version }}
         mongodb-replica-set: rs
@@ -135,24 +140,25 @@ jobs:
 
     - run: npm run test:api:unit
       env:
-        REQUIRES_SERVER=true: true
+        REQUIRES_SERVER: true
 
   api-v3-integration:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node-version: [21.x]
+        node-version: [22.x]
         mongodb-version: [7.0]
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         fetch-depth: 1
+        persist-credentials: false
     - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
       with:
         node-version: ${{ matrix.node-version }}
     - name: Start MongoDB ${{ matrix.mongodb-version }} Replica Set
-      uses: supercharge/mongodb-github-action@1.11.0
+      uses: supercharge/mongodb-github-action@315db7fe45ac2880b7758f1933e6e5d59afd5e94 # 1.12.1
       with:
         mongodb-version: ${{ matrix.mongodb-version }}
         mongodb-replica-set: rs
@@ -169,25 +175,26 @@ jobs:
 
     - run: npm run test:api-v3:integration
       env:
-        REQUIRES_SERVER=true: true
+        REQUIRES_SERVER: true
 
   api-v4-integration:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node-version: [21.x]
+        node-version: [22.x]
         mongodb-version: [7.0]
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         fetch-depth: 1
+        persist-credentials: false
     - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
       with:
         node-version: ${{ matrix.node-version }}
     - name: Start MongoDB ${{ matrix.mongodb-version }} Replica Set
-      uses: supercharge/mongodb-github-action@1.11.0
+      uses: supercharge/mongodb-github-action@315db7fe45ac2880b7758f1933e6e5d59afd5e94 # 1.12.1
       with:
         mongodb-version: ${{ matrix.mongodb-version }}
         mongodb-replica-set: rs
@@ -204,19 +211,20 @@ jobs:
 
     - run: npm run test:api-v4:integration
       env:
-        REQUIRES_SERVER=true: true
+        REQUIRES_SERVER: true
 
   client-unit:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node-version: [21.x]
+        node-version: [22.x]
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         fetch-depth: 1
+        persist-credentials: false
     - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
       with:
         node-version: ${{ matrix.node-version }}
     - run: sudo apt update
@@ -235,13 +243,14 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node-version: [21.x]
+        node-version: [22.x]
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         fetch-depth: 1
+        persist-credentials: false
     - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
       with:
         node-version: ${{ matrix.node-version }}
     - run: sudo apt update

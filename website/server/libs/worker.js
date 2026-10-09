@@ -35,7 +35,7 @@ if (nconf.get('WORKER_REDIS_URL')) {
   SERVER_STATUS.WORKER = true;
 }
 
-function sendJob(type, config) {
+function sendJob (type, config) { // eslint-disable-line consistent-return
   if (config && config.data && config.data.variables) {
     return sendEmail(config.data.emailType, config.data.variables, config.data.personalVariables);
   }

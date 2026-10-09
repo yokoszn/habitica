@@ -1,3 +1,5 @@
+/* eslint-disable import/no-import-module-exports, import/no-commonjs */
+// Loaded with require() by scripts/team-cron/run-team-cron.js, hence the CommonJS export
 import forEach from 'lodash/forEach';
 import { model as Group } from '../website/server/models/group';
 import { model as User } from '../website/server/models/user';
@@ -100,7 +102,7 @@ async function updateTeamTasks (team) {
   return Promise.all(toSave);
 }
 
-module.exports = async function processTeamsCron() {
+module.exports = async function processTeamsCron () {
   const activeTeams = await Group.find({
     'purchased.plan.customerId': { $exists: true },
   }, { cron: 1, leader: 1, purchased: 1 }).exec();
