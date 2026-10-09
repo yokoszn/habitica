@@ -1,5 +1,6 @@
 import passport from 'passport';
 import nconf from 'nconf';
+import mongoose from 'mongoose';
 import common from '../../../common';
 import { verifyUsername } from '../user/validation';
 import { BadRequest, NotAuthorized, NotFound } from '../errors';
@@ -48,8 +49,8 @@ export async function socialEmailToLocal (user) {
 }
 
 // Defaults for newly registered users of this self-hosted instance: everyone gets the
-// subscription features and the first registered user becomes an admin.
-export async function newUserDefaults () {
+// subscription features. The first registered user becomes an admin, see saveNewUser.
+export function newUserDefaults () {
   return {
     'purchased.plan': {
       planId: 'basic',
@@ -58,8 +59,42 @@ export async function newUserDefaults () {
       dateUpdated: new Date(),
       gemsBought: 0,
     },
-    'permissions.fullAccess': !await User.findOne().exec(),
   };
+}
+
+// A document with a fixed id, so that only one of several registrations running at the same
+// time can insert it. It stays after the first user is created, so that deleting all users
+// later does not hand out admin rights again.
+const FIRST_ADMIN_CLAIM = { _id: 'firstAdmin' };
+
+function instanceCollection () {
+  return mongoose.connection.collection('instance');
+}
+
+async function claimFirstAdmin () {
+  if (await User.exists({})) return false;
+
+  try {
+    await instanceCollection().insertOne({ ...FIRST_ADMIN_CLAIM, claimedAt: new Date() });
+    return true;
+  } catch (err) {
+    if (err.code === 11000) return false; // another registration claimed it first
+    throw err;
+  }
+}
+
+// Saves a newly registered user, as an admin if it is the first user of the instance
+export async function saveNewUser (user) {
+  const isFirstUser = await claimFirstAdmin();
+  if (isFirstUser) user.permissions.fullAccess = true;
+
+  try {
+    return await user.save();
+  } catch (err) {
+    // The account was not created, so the next registration may become the admin
+    if (isFirstUser) await instanceCollection().deleteOne(FIRST_ADMIN_CLAIM);
+    throw err;
+  }
 }
 
 export async function loginSocial (req, res) {
@@ -176,14 +211,14 @@ export async function loginSocial (req, res) {
       flags: {
         verifiedUsername: true,
       },
-      ...await newUserDefaults(),
+      ...newUserDefaults(),
     };
     user = new User(user);
     user.registeredThrough = req.headers['x-client']; // Not saved, used to create the correct tasks based on the device used
     trackRegistrationEvent({ user, method: network, ipAddress: req.ip });
   }
 
-  const savedUser = await user.save();
+  const savedUser = existingUser ? await user.save() : await saveNewUser(user);
 
   if (!existingUser) {
     savedUser.newUser = true;
