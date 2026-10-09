@@ -5,6 +5,7 @@ import {
   generateReq,
   generateNext,
 } from '../../../helpers/api-unit.helper';
+import logger from '../../../../website/server/libs/logger';
 
 describe('requestLogHandler middleware', () => {
   let res; let req; let
@@ -33,5 +34,22 @@ describe('requestLogHandler middleware', () => {
     const spy = sinon.spy();
     middleware.logRequestData(req, res, spy);
     expect(spy.calledOnce).to.be.true;
+  });
+
+  it('redacts passwords, reset codes and credentials in the logged request data', () => {
+    const middleware = requireAgain(pathToMiddleWare);
+    sandbox.stub(logger, 'info');
+    req.headers = { 'x-api-user': 'user-id', 'x-api-key': 'api-key' };
+    req.body = { newPassword: 'new-password', code: 'reset-code', username: 'username' };
+    req.query = { lang: 'en' };
+
+    middleware.logRequestData(req, res, next);
+
+    expect(logger.info).to.be.calledOnce;
+    expect(logger.info).to.be.calledWithMatch('Request started', {
+      headers: { 'x-api-user': 'user-id', 'x-api-key': '[REDACTED]' },
+      body: { newPassword: '[REDACTED]', code: '[REDACTED]', username: 'username' },
+      query: { lang: 'en' },
+    });
   });
 });
