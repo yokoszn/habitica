@@ -172,9 +172,11 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          if output=$(gh api "repos/${REPO}/dependency-graph/compare/${BASE_SHA}...${HEAD_SHA}" 2>&1 >/dev/null); then
+          # The API answers 403 when the dependency graph is disabled (the action reports
+          # any 403 that way too)
+          if output=$(gh api "repos/${REPO}/dependency-graph/compare/${BASE_SHA}...${HEAD_SHA}" 2>&1); then
             echo "enabled=true" >> "$GITHUB_OUTPUT"
-          elif grep -qi "dependency graph" <<< "$output"; then
+          elif grep -q "(HTTP 403)" <<< "$output"; then
             echo "::warning title=Dependency review skipped::The dependency graph is disabled for this repository. Enable it in the repository settings under Advanced Security (Code security)."
             echo "enabled=false" >> "$GITHUB_OUTPUT"
           else
