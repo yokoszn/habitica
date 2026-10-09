@@ -18,6 +18,8 @@ if (process.env.LOAD_SERVER === '0') { // when the server is in a different proc
   nconf.set('NODE_ENV', 'test');
   nconf.set('ACCOUNT_MIN_CHAT_AGE', '2');
   nconf.set('IS_TEST', true);
+  // The integration tests deliver webhooks to a server on localhost
+  nconf.set('WEBHOOK_ALLOW_PRIVATE_TARGETS', 'true');
   // We require src/server and not src/index because
   // 1. nconf is already setup
   // 2. we don't need clustering

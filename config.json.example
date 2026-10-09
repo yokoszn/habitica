@@ -100,5 +100,6 @@
   "TEST_DB_URI": "mongodb://localhost:27017/habitica-test?replicaSet=rs&directConnection=true&readPreference=secondary",
   "TIME_TRAVEL_ENABLED": "false",
   "TRUSTED_DOMAINS": "localhost,https://habitica.com",
-  "WEB_CONCURRENCY": 1
+  "WEB_CONCURRENCY": 1,
+  "WEBHOOK_ALLOW_PRIVATE_TARGETS": "false"
 }

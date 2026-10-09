@@ -1,3 +1,5 @@
+import dns from 'dns';
+import net from 'net';
 import got from 'got';
 import { isURL } from 'validator';
 import nconf from 'nconf';
@@ -9,14 +11,105 @@ import { // eslint-disable-line import/no-cycle
 
 const IS_PRODUCTION = nconf.get('IS_PROD');
 
-function sendWebhook (webhook, body, user) {
-  const { url, lastFailureAt } = webhook;
+// Addresses that webhooks must not reach unless WEBHOOK_ALLOW_PRIVATE_TARGETS is enabled:
+// loopback, private, link-local (incl. cloud metadata), CGNAT, unspecified, multicast, reserved.
+// BlockList also matches IPv4-mapped IPv6 addresses (::ffff:a.b.c.d) against the IPv4 rules.
+const BLOCKED_ADDRESSES = new net.BlockList();
+[
+  ['0.0.0.0', 8], ['10.0.0.0', 8], ['100.64.0.0', 10], ['127.0.0.0', 8], ['169.254.0.0', 16],
+  ['172.16.0.0', 12], ['192.0.0.0', 24], ['192.0.2.0', 24], ['192.168.0.0', 16],
+  ['198.18.0.0', 15], ['198.51.100.0', 24], ['203.0.113.0', 24], ['224.0.0.0', 4],
+  ['240.0.0.0', 4],
+].forEach(([address, prefix]) => BLOCKED_ADDRESSES.addSubnet(address, prefix, 'ipv4'));
+[
+  ['::', 96], // unspecified, loopback and IPv4-compatible addresses
+  ['64:ff9b::', 96], ['2001:db8::', 32], ['fc00::', 7], ['fe80::', 10], ['fec0::', 10],
+  ['ff00::', 8],
+].forEach(([address, prefix]) => BLOCKED_ADDRESSES.addSubnet(address, prefix, 'ipv6'));
 
-  got.post(url, {
+function privateTargetsAllowed () {
+  return [true, 'true'].includes(nconf.get('WEBHOOK_ALLOW_PRIVATE_TARGETS'));
+}
+
+export function isBlockedAddress (address) {
+  const family = net.isIP(address);
+  if (family === 0) return true;
+  return BLOCKED_ADDRESSES.check(address, family === 6 ? 'ipv6' : 'ipv4');
+}
+
+function forbiddenTargetError (target) {
+  const err = new Error(`Webhook target ${target} is a private or reserved address.`);
+  err.code = 'EWEBHOOKTARGET';
+  return err;
+}
+
+// DNS lookup for got/net that refuses private addresses. The connection is made to the
+// address checked here, so a DNS answer that changes between check and connect cannot
+// bypass it. Node does not call it for IP literals, see assertAllowedTarget.
+export function lookupPublicAddress (hostname, options, callback) {
+  let cb = callback;
+  let opts = options;
+  if (typeof options === 'function') {
+    cb = options;
+    opts = {};
+  } else if (typeof options === 'number') {
+    opts = { family: options };
+  }
+
+  dns.lookup(hostname, { ...opts, all: true }, (err, addresses) => {
+    if (err) return cb(err);
+
+    const blocked = addresses.find(({ address }) => isBlockedAddress(address));
+    if (blocked) return cb(forbiddenTargetError(`${hostname} (${blocked.address})`));
+
+    if (opts.all) return cb(null, addresses);
+    return cb(null, addresses[0].address, addresses[0].family);
+  });
+}
+
+function assertAllowedTarget (url, allowPrivate) {
+  const { protocol, hostname } = new URL(url);
+
+  if (!['http:', 'https:'].includes(protocol)) {
+    throw new Error(`Webhook URL protocol ${protocol} is not supported.`);
+  }
+
+  // got sends requests for the host "unix" to a local UNIX domain socket
+  if (hostname === 'unix') throw forbiddenTargetError(hostname);
+
+  const address = hostname.replace(/^\[|\]$/g, '');
+  if (!allowPrivate && net.isIP(address) && isBlockedAddress(address)) {
+    throw forbiddenTargetError(address);
+  }
+}
+
+function postWebhook (url, body) {
+  const allowPrivate = privateTargetsAllowed();
+  assertAllowedTarget(url, allowPrivate);
+
+  return got.post(url, {
     json: body,
     timeout: 30000, // wait up to 30s before timing out
     retry: 3, // retry the request up to 3 times
+    // A redirect could point to an internal address
+    followRedirect: false,
+    ...(allowPrivate ? {} : { lookup: lookupPublicAddress }),
   // Not calling .json() to parse the response because we simply ignore it
+  }).then(response => {
+    // got treats 3xx as success when redirects are not followed, but nothing was delivered
+    if (response && response.statusCode >= 300 && response.statusCode < 400) {
+      throw new Error(`Webhook target responded with a redirect (${response.statusCode}).`);
+    }
+    return response;
+  });
+}
+
+function sendWebhook (webhook, body, user) {
+  const { url, lastFailureAt } = webhook;
+
+  // The executor runs synchronously, and a refused target is counted as a failure
+  new Promise(resolve => {
+    resolve(postWebhook(url, body));
   }).catch(webhookErr => {
     // Log the error
     logger.error(webhookErr, {
