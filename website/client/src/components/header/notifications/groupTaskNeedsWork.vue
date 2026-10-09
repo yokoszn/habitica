@@ -9,19 +9,25 @@
     <div
       slot="content"
       class="notification-yellow"
-      v-html="notification.data.message"
+      v-html="message"
     ></div>
   </base-notification>
 </template>
 
 <script>
 import BaseNotification from './base';
+import { sanitizeTaskMessage } from '@/libs/notifications';
 
 export default {
   components: {
     BaseNotification,
   },
   props: ['notification', 'canRemove'],
+  computed: {
+    message () {
+      return sanitizeTaskMessage(this.notification.data.message);
+    },
+  },
   methods: {
     action () {
       const groupId = this.notification.data.group.id;

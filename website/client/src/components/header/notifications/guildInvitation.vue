@@ -26,6 +26,7 @@
 </template>
 
 <script>
+import escape from 'lodash/escape';
 import BaseNotification from './base';
 import { mapState } from '@/libs/store';
 
@@ -41,7 +42,7 @@ export default {
       return false;
     },
     textString () {
-      const guild = this.notification.data.name;
+      const guild = escape(this.notification.data.name);
 
       if (this.isPublicGuild) {
         return this.$t('invitedToPublicGuild', { guild });
