@@ -1,0 +1,9 @@
+# Changes to CI/CD, release automation and dependency policy need the maintainer's review.
+* @yokoszn
+/.github/ @yokoszn
+/Dockerfile @yokoszn
+/docker-compose*.yml @yokoszn
+/package.json @yokoszn
+/package-lock.json @yokoszn
+/website/client/package.json @yokoszn
+/website/client/package-lock.json @yokoszn
