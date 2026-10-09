@@ -1,4 +1,8 @@
-import logger, { _loggerConfig } from '../../../../website/server/libs/logger';
+import logger, {
+  _loggerConfig,
+  isSensitiveField,
+  redactSensitiveData,
+} from '../../../../website/server/libs/logger';
 import {
   NotFound,
 } from '../../../../website/server/libs/errors';
@@ -203,6 +207,42 @@ describe('logger', () => {
             },
           },
         );
+      });
+    });
+  });
+
+  describe('redactSensitiveData', () => {
+    it('recognizes sensitive fields regardless of case and separators', () => {
+      [
+        'password', 'newPassword', 'new_password', 'confirmPassword', 'oldPassword',
+        'code', 'Code', 'x-api-key', 'X-Api-Key', 'authorization', 'proxy-authorization',
+        'cookie', 'id_token', 'access_token', 'apiToken', 'client_secret',
+      ].forEach(name => {
+        expect(isSensitiveField(name), name).to.equal(true);
+      });
+
+      [
+        'username', 'email', 'x-api-user', 'x-client', 'user-agent', 'lang', 'type', 'couponCode',
+      ].forEach(name => {
+        expect(isSensitiveField(name), name).to.equal(false);
+      });
+    });
+
+    it('returns values that are not objects or arrays unchanged', () => {
+      expect(redactSensitiveData(undefined)).to.equal(undefined);
+      expect(redactSensitiveData('password')).to.equal('password');
+      const buffer = Buffer.from('raw body');
+      expect(redactSensitiveData(buffer)).to.equal(buffer);
+    });
+
+    it('redacts objects without a prototype', () => {
+      const headers = Object.create(null);
+      headers['x-api-key'] = 'api-key';
+      headers['x-api-user'] = 'user-id';
+
+      expect(redactSensitiveData(headers)).to.eql({
+        'x-api-key': '[REDACTED]',
+        'x-api-user': 'user-id',
       });
     });
   });

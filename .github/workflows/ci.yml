@@ -38,6 +38,8 @@ jobs:
         run: |
           npm ci --ignore-scripts
           npm ci --ignore-scripts --prefix website/client
+      # Some tests import config.json, which the import rules resolve
+      - run: cp config.json.example config.json
       - name: Lint server and shared code
         run: npx eslint --ext .js .
       - name: Lint client

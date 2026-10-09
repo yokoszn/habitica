@@ -15,6 +15,7 @@
 </template>
 
 <script>
+import escape from 'lodash/escape';
 import BaseNotification from './base';
 import { mapState } from '@/libs/store';
 
@@ -33,7 +34,7 @@ export default {
     },
     string () {
       const stringKey = this.isParty ? 'newMsgParty' : 'newMsgGuild';
-      return this.$t(stringKey, { name: this.notification.data.group.name });
+      return this.$t(stringKey, { name: escape(this.notification.data.group.name) });
     },
   },
   methods: {

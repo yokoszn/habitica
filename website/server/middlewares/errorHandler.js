@@ -1,10 +1,11 @@
 // The error handler middleware that handles all errors
 // and respond to the client
-import {
-  map,
-  omit,
-} from 'lodash';
-import logger from '../libs/logger';
+import { map } from 'lodash';
+import logger, {
+  isSensitiveField,
+  redactSensitiveData,
+  REDACTED_VALUE,
+} from '../libs/logger';
 import {
   CustomError,
   BadRequest,
@@ -17,6 +18,7 @@ export default function errorHandler (err, req, res, next) { // eslint-disable-l
   // Otherwise try to identify the type of error (mongoose validation, mongodb unique, ...)
   // If we can't identify it, respond with a generic 500 error
   let responseErr = err instanceof CustomError ? err : null;
+  let loggedErr = err;
 
   // Handle errors created with 'http-errors' or similar that have a status/statusCode property
   if (err.statusCode && typeof err.statusCode === 'number') {
@@ -34,6 +36,10 @@ export default function errorHandler (err, req, res, next) { // eslint-disable-l
       param: paramErr.param,
       value: paramErr.value,
     }));
+    // The submitted values are returned to the client, but sensitive ones must not be logged
+    loggedErr = err.map(paramErr => (isSensitiveField(paramErr.param)
+      ? { ...paramErr, value: REDACTED_VALUE }
+      : paramErr));
   }
 
   // Handle mongoose validation errors
@@ -68,14 +74,14 @@ export default function errorHandler (err, req, res, next) { // eslint-disable-l
 
   if (!err.skipLogging) {
     // log the error
-    logger.error(err, {
+    logger.error(loggedErr, {
       method: req.method,
       originalUrl: req.originalUrl,
 
-      // don't send sensitive information that only adds noise
-      headers: omit(req.headers, ['x-api-key', 'cookie', 'password', 'confirmPassword']),
-      body: omit(req.body, ['password', 'confirmPassword']),
-      query: omit(req.query, ['password', 'confirmPassword']),
+      // don't log passwords, reset codes and credentials
+      headers: redactSensitiveData(req.headers),
+      body: redactSensitiveData(req.body),
+      query: redactSensitiveData(req.query),
 
       httpCode: responseErr.httpCode,
       isHandledError: responseErr.httpCode < 500,

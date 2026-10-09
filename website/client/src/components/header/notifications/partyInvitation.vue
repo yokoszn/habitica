@@ -28,6 +28,7 @@
 </template>
 
 <script>
+import escape from 'lodash/escape';
 import BaseNotification from './base';
 import { mapState } from '@/libs/store';
 import sync from '@/mixins/sync';
@@ -58,9 +59,12 @@ export default {
     ...mapState({ user: 'user.data' }),
     invitationInfo () {
       if (this.notification?.data) {
+        const { inviter, name } = this.notification.data;
+        const username = this.invitingUser.auth
+          ? escape(this.invitingUser.auth.local.username) : null;
         return {
-          usernameLink: `<a href="/profile/${this.notification.data.inviter}" target="_blank" rel="noreferrer noopener">@${this.invitingUser.auth ? this.invitingUser.auth.local.username : null}</a>`,
-          partyName: `<span class="notification-bold">${this.notification.data.name}</span>`,
+          usernameLink: `<a href="/profile/${encodeURIComponent(inviter)}" target="_blank" rel="noreferrer noopener">@${username}</a>`,
+          partyName: `<span class="notification-bold">${escape(name)}</span>`,
         };
       }
       return null;

@@ -71,7 +71,7 @@ gulp.task('test:prepare:mongo', cb => {
 
 gulp.task('test:prepare:server', gulp.series('test:prepare:mongo', done => {
   if (!server) {
-    server = exec(testBin('node ./website/server/index.js', `NODE_DB_URI=${TEST_DB_URI} PORT=${TEST_SERVER_PORT}`), (error, stdout, stderr) => {
+    server = exec(testBin('node ./website/server/index.js', `NODE_DB_URI=${TEST_DB_URI} PORT=${TEST_SERVER_PORT} WEBHOOK_ALLOW_PRIVATE_TARGETS=true`), (error, stdout, stderr) => {
       if (error) {
         throw new Error(`Problem with the server: ${error}`);
       }

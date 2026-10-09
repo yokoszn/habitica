@@ -10,7 +10,8 @@ const api = {};
  * @apiName ScoreTasks
  * @apiGroup Task
  *
- * @apiParam (Body) {Object[]} body An array with the data on the tasks to score
+ * @apiParam (Body) {Object[]} body An array with the data on the tasks to score,
+ *                                  at most 100 entries (configurable with MAX_BULK_SCORE)
  * @apiParam (Body) {String} body.*.id A task identifier, either the id or alias
  * @apiParam (Body) {String="up","down"} body.*.direction The direction in which to score the task
  *

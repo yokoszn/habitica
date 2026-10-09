@@ -8,6 +8,7 @@ import common from '../../../common';
 import {
   NotFound,
   BadRequest,
+  NotAuthorized,
 } from '../../libs/errors';
 import { apiError } from '../../libs/apiError';
 import {
@@ -214,6 +215,42 @@ const gemsPerTier = {
   1: 10, 2: 20, 3: 30, 4: 40, 5: 50, 6: 60, 7: 70, 8: 0, 9: 0,
 };
 
+const permissionKeys = Object.keys(User.schema.tree.permissions);
+
+// The admin panel always sends the current values back, so only a different value is a change
+function isFlagChange (newValue, currentValue) {
+  return newValue !== undefined && Boolean(newValue) !== Boolean(currentValue);
+}
+
+// Returns the new email if updateData changes the hero's email, otherwise null
+function getChangedEmail (hero, updateData) {
+  const email = updateData.auth && updateData.auth.local && updateData.auth.local.email;
+  if (!email || typeof email !== 'string') return null;
+
+  const newEmail = email.toLowerCase();
+  const currentEmail = hero.auth.local.email ? hero.auth.local.email.toLowerCase() : '';
+  return newEmail === currentEmail ? null : newEmail;
+}
+
+// Without fullAccess an admin must not be able to raise anyone's privileges (their own included)
+// or take over the account of a fullAccess admin or of another user holding a permission.
+function ensureCanUpdateHero (actor, hero, updateData) {
+  if (actor.hasPermission('fullAccess')) return;
+
+  const changesPermissions = updateData.permissions && permissionKeys
+    .some(key => isFlagChange(updateData.permissions[key], hero.permissions[key]));
+  const changesLegacyAdmin = updateData.contributor
+    && isFlagChange(updateData.contributor.admin, hero.contributor && hero.contributor.admin);
+  const changesStaffEmail = getChangedEmail(hero, updateData) !== null
+    && permissionKeys.some(key => hero.permissions[key]);
+
+  if (
+    hero.permissions.fullAccess || changesPermissions || changesLegacyAdmin || changesStaffEmail
+  ) {
+    throw new NotAuthorized(apiError('noPrivAccess'));
+  }
+}
+
 /**
  * @api {put} /api/v3/hall/heroes/:heroId Update any user ("hero")
  * @apiParam (Path) {UUID} heroId User ID
@@ -270,6 +307,9 @@ api.updateHero = {
 
     const hero = await User.findById(heroId).exec();
     if (!hero) throw new NotFound(res.t('userWithIDNotFound', { userId: heroId }));
+
+    // must run before any change, some of the updates below write to the database right away
+    ensureCanUpdateHero(res.locals.user, hero, updateData);
 
     if (updateData.balance && updateData.balance !== hero.balance) {
       await hero.updateBalance(updateData.balance - hero.balance, 'admin_update_balance', '', 'Given by Habitica staff');
@@ -417,7 +457,8 @@ api.updateHero = {
     }
 
     if (updateData.contributor) _.assign(hero.contributor, updateData.contributor);
-    if (updateData.permissions && res.locals.user.hasPermission('userSupport')) _.assign(hero.permissions, updateData.permissions);
+    // other admins can only send the unchanged permissions, see ensureCanUpdateHero
+    if (updateData.permissions && res.locals.user.hasPermission('fullAccess')) _.assign(hero.permissions, updateData.permissions);
     if (updateData.purchased && updateData.purchased.ads) {
       hero.purchased.ads = updateData.purchased.ads;
     }
@@ -477,8 +518,11 @@ api.updateHero = {
         hero.auth.blocked = false;
       }
 
-      if (updateData.auth.local && updateData.auth.local.email) {
-        hero.auth.local.email = updateData.auth.local.email.toLowerCase();
+      const newEmail = getChangedEmail(hero, updateData);
+      if (newEmail) {
+        hero.auth.local.email = newEmail;
+        // a reset link sent to the old address must stop working
+        hero.auth.local.passwordResetCode = undefined;
       }
     }
 

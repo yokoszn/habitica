@@ -108,6 +108,18 @@ networks:
 > [!IMPORTANT]
 > If you are planning to run the Habitica containers on a Raspberry Pi 4, you might not be able to use `mongo:latest` (see [issue 20](https://github.com/awinterstein/habitica/issues/20)). In this case you can try to use `mongo:bionic` instead.
 
+### Rate Limiting and Reverse Proxies
+
+The server image limits the API requests per user, and per IP address for requests without a logged-in user (for example login, registration and password reset). Set `RATE_LIMITER_ENABLED=false` to turn this off. The limits are kept in the memory of the server process. If you run several server containers or processes, they can share the limits through a Redis server:
+
+```yaml
+      - REDIS_HOST=redis # or REDIS_URL=redis://redis:6379
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=redis_password # optional
+```
+
+The server takes the client's IP address from the `X-Forwarded-For` header only if the request comes from a proxy on a loopback or private network address, such as a reverse proxy on the host or in a Docker network (`TRUST_PROXY=loopback, linklocal, uniquelocal`). If your reverse proxy has another address, set `TRUST_PROXY` to its address or subnet, to the number of proxies in front of the server, or to `true` to trust any proxy (only if clients cannot reach the server port directly). If a reverse proxy is in front of the server, publish the server port on the loopback interface only (`"127.0.0.1:3000:3000"`), so that clients cannot bypass the proxy.
+
 ## Optimized Setup with Docker Compose
 
 As there's probably a web server running on the host already, acting as a reverse proxy for Habitica, this web server could be used to sever the static client files for Habitica as well.

@@ -25,6 +25,34 @@ const _config = {
 
 export { _config as _loggerConfig }; // exported for use during tests
 
+// Request fields (body, query, headers) whose values must not be logged:
+// passwords, password reset codes, API keys, tokens and other credentials.
+// Names are compared in lower case and without separators,
+// so that newPassword, new_password and x-api-key all match.
+const SENSITIVE_FIELD_PARTS = ['password', 'secret', 'token', 'apikey', 'authorization', 'cookie'];
+// Matched only as a whole name, a partial match would hide unrelated fields
+const SENSITIVE_FIELDS = ['code'];
+const MAX_REDACTION_DEPTH = 10;
+export const REDACTED_VALUE = '[REDACTED]';
+
+export function isSensitiveField (name) {
+  const normalizedName = String(name).toLowerCase().replace(/[^a-z0-9]/g, '');
+  return SENSITIVE_FIELDS.includes(normalizedName)
+    || SENSITIVE_FIELD_PARTS.some(part => normalizedName.includes(part));
+}
+
+// Returns a copy of some request data (body, query or headers)
+// where the values of sensitive fields are replaced, so that it can be logged
+export function redactSensitiveData (data, depth = 0) {
+  if (!Array.isArray(data) && !_.isPlainObject(data)) return data;
+  if (depth >= MAX_REDACTION_DEPTH) return '[TOO DEEP]';
+
+  if (Array.isArray(data)) return data.map(item => redactSensitiveData(item, depth + 1));
+  return _.mapValues(data, (value, key) => (
+    isSensitiveField(key) ? REDACTED_VALUE : redactSensitiveData(value, depth + 1)
+  ));
+}
+
 const slimLogs = winston.format(info => {
   if (info && info.message && info.message.indexOf('BadRequest: Missing x-client headers') === 0) {
     info.body = undefined;
