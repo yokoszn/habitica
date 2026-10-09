@@ -151,7 +151,7 @@ describe('PUT /group', () => {
     };
 
     // Make guild leader into admin
-    await groupLeader.post('/debug/make-admin');
+    await groupLeader.updateOne({ 'permissions.fullAccess': true });
     await groupLeader.sync();
 
     // Update the bannedWordsAllowed property for the group
