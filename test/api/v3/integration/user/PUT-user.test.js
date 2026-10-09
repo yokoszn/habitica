@@ -4,6 +4,7 @@ import {
   translate as t,
 } from '../../../../helpers/api-integration/v3';
 import { model as NewsPost } from '../../../../../website/server/models/newsPost';
+import { model as User } from '../../../../../website/server/models/user';
 
 describe('PUT /user', () => {
   let user;
@@ -153,6 +154,7 @@ describe('PUT /user', () => {
     const protectedOperations = {
       'class stat': { 'stats.class': 'wizard' },
       'flags unless whitelisted': { 'flags.chatRevoked': true },
+      'profile flags': { 'profile.flags': {} },
       webhooks: { 'preferences.webhooks': [1, 2, 3] },
       sleep: { 'preferences.sleep': true },
       'disable classes': { 'preferences.disableClasses': true },
@@ -169,6 +171,20 @@ describe('PUT /user', () => {
           message: errorText,
         });
       });
+    });
+
+    it('does not allow a reported user to clear the reports against them', async () => {
+      const reporter = await generateUser();
+      await reporter.post(`/members/${user._id}/flag`);
+
+      await expect(user.put('/user', { 'profile.flags': {} })).to.eventually.be.rejected.and.eql({
+        code: 401,
+        error: 'NotAuthorized',
+        message: t('messageUserOperationProtected', { operation: 'profile.flags' }),
+      });
+
+      const dbUser = await User.findById(user._id).select('profile.flags').lean().exec();
+      expect(dbUser.profile.flags).to.have.all.keys([reporter._id]);
     });
   });
 

@@ -110,6 +110,7 @@ describe('PUT /user', () => {
     const protectedOperations = {
       'class stat': { 'stats.class': 'wizard' },
       'flags unless whitelisted': { 'flags.chatRevoked': true },
+      'profile flags': { 'profile.flags': {} },
       webhooks: { 'preferences.webhooks': [1, 2, 3] },
       sleep: { 'preferences.sleep': true },
       'disable classes': { 'preferences.disableClasses': true },
