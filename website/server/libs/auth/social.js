@@ -67,15 +67,10 @@ export function newUserDefaults () {
 // later does not hand out admin rights again.
 const FIRST_ADMIN_CLAIM = { _id: 'firstAdmin' };
 
-function instanceCollection () {
-  return mongoose.connection.collection('instance');
-}
-
-async function claimFirstAdmin () {
-  if (await User.exists({})) return false;
-
+async function claimFirstAdmin (userId) {
   try {
-    await instanceCollection().insertOne({ ...FIRST_ADMIN_CLAIM, claimedAt: new Date() });
+    await mongoose.connection.collection('instance')
+      .insertOne({ ...FIRST_ADMIN_CLAIM, userId, claimedAt: new Date() });
     return true;
   } catch (err) {
     if (err.code === 11000) return false; // another registration claimed it first
@@ -83,18 +78,19 @@ async function claimFirstAdmin () {
   }
 }
 
-// Saves a newly registered user, as an admin if it is the first user of the instance
+// Saves a newly registered user, as an admin if it is the first user of the instance.
+// The role is only claimed after the user was saved, so a registration that fails cannot
+// keep it from a concurrent one that succeeds.
 export async function saveNewUser (user) {
-  const isFirstUser = await claimFirstAdmin();
-  if (isFirstUser) user.permissions.fullAccess = true;
+  const mayBeFirstUser = !await User.exists({});
+  const savedUser = await user.save();
 
-  try {
-    return await user.save();
-  } catch (err) {
-    // The account was not created, so the next registration may become the admin
-    if (isFirstUser) await instanceCollection().deleteOne(FIRST_ADMIN_CLAIM);
-    throw err;
+  if (mayBeFirstUser && await claimFirstAdmin(savedUser._id)) {
+    await User.updateOne({ _id: savedUser._id }, { $set: { 'permissions.fullAccess': true } }).exec();
+    savedUser.permissions.fullAccess = true;
   }
+
+  return savedUser;
 }
 
 export async function loginSocial (req, res) {
