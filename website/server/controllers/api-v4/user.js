@@ -229,7 +229,7 @@ api.userReset = {
       const isValidPassword = await passwordUtils.compare(user, password);
       if (!isValidPassword) throw new NotAuthorized(res.t('wrongPassword'));
     } else if (
-      (user.auth.facebook.id || user.auth.google.id || user.auth.apple.id)
+      (user.auth.facebook.id || user.auth.google.id || user.auth.apple.id || user.auth.logto.id)
       && password !== RESET_CONFIRMATION
     ) {
       throw new NotAuthorized(res.t('incorrectResetPhrase', { magicWord: RESET_CONFIRMATION }));

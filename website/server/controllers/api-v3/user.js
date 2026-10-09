@@ -274,7 +274,7 @@ api.deleteUser = {
       const isValidPassword = await passwordUtils.compare(user, password);
       if (!isValidPassword) throw new NotAuthorized(res.t('wrongPassword'));
     } else if (
-      (user.auth.facebook.id || user.auth.google.id || user.auth.apple.id)
+      (user.auth.facebook.id || user.auth.google.id || user.auth.apple.id || user.auth.logto.id)
       && password !== DELETE_CONFIRMATION
     ) {
       throw new NotAuthorized(res.t('incorrectDeletePhrase', { magicWord: DELETE_CONFIRMATION }));
@@ -364,6 +364,7 @@ api.getUserAnonymized = {
       delete user.auth.facebook;
       delete user.auth.google;
       delete user.auth.apple;
+      delete user.auth.logto;
     }
     delete user.newMessages;
     delete user.profile;

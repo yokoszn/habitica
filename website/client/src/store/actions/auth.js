@@ -92,6 +92,23 @@ export async function socialAuth (store, params) {
   return user.id;
 }
 
+// Exchanges the Logto profile stored in the server session (after the redirect back from Logto)
+// for Habitica credentials. Logs in, registers or connects Logto to the current account.
+export async function logtoAuth (store) {
+  const result = await axios.post('/api/v4/user/auth/social', { network: 'logto' });
+
+  // errors of the social route are resolved by the axios interceptor in app.vue
+  if (!result.data || !result.data.data) {
+    const errorData = result.response && result.response.data;
+    return { error: (errorData && errorData.message) || true };
+  }
+
+  const user = result.data.data;
+
+  saveLocalDataAuth(store, user.id, user.apiToken);
+  return { id: user.id, newUser: user.newUser };
+}
+
 export async function appleAuth (store, params) {
   const url = '/api/v4/user/auth/apple';
   const result = await axios.get(url, {

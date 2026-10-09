@@ -12,6 +12,7 @@ import {
   BadRequest,
 } from '../../libs/errors';
 import * as passwordUtils from '../../libs/password';
+import { logtoConfig } from '../../libs/auth/logto';
 import { sendTxn as sendTxnEmail } from '../../libs/email';
 import { encrypt } from '../../libs/encryption';
 import {
@@ -180,6 +181,16 @@ api.loginApple = {
     req.body.username = req.query.username;
     req.body.email = req.query.email;
     return loginSocial(req, res);
+  },
+};
+
+// Tells the client whether signing in with Logto is available. Internal route
+api.logtoConfig = {
+  method: 'GET',
+  middlewares: [],
+  url: '/user/auth/logto/config',
+  async handler (req, res) {
+    res.respond(200, logtoConfig());
   },
 };
 

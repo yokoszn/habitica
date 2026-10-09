@@ -1,4 +1,6 @@
 import passport from 'passport';
+import nconf from 'nconf';
+import mongoose from 'mongoose';
 import common from '../../../common';
 import { verifyUsername } from '../user/validation';
 import { BadRequest, NotAuthorized, NotFound } from '../errors';
@@ -8,11 +10,14 @@ import {
   loginRes,
 } from './utils';
 import { appleProfile } from './apple';
+import { isLogtoEnabled, logtoProfile } from './logto';
 import { model as User } from '../../models/user';
 import { model as EmailUnsubscription } from '../../models/emailUnsubscription';
 import { sendTxn as sendTxnEmail } from '../email';
 import { apiError } from '../apiError';
 import { trackRegistrationEvent } from '../localAnalytics';
+
+const INVITE_ONLY = nconf.get('INVITE_ONLY') === 'true';
 
 function _passportProfile (network, accessToken) {
   return new Promise((resolve, reject) => {
@@ -30,7 +35,9 @@ export async function socialEmailToLocal (user) {
   const socialEmail = (user.auth.google && user.auth.google.emails
     && user.auth.google.emails[0].value)
     || (user.auth.facebook && user.auth.facebook.emails && user.auth.facebook.emails[0].value)
-    || (user.auth.apple && user.auth.apple.emails && user.auth.apple.emails[0].value);
+    || (user.auth.apple && user.auth.apple.emails && user.auth.apple.emails[0].value)
+    || (user.auth.logto && user.auth.logto.emails && user.auth.logto.emails[0]
+      && user.auth.logto.emails[0].value);
   if (socialEmail) {
     const conflictingUser = await User.findOne(
       { 'auth.local.email': socialEmail },
@@ -41,23 +48,71 @@ export async function socialEmailToLocal (user) {
   return undefined;
 }
 
-export async function loginSocial (req, res) { // eslint-disable-line import/prefer-default-export
+// Defaults for newly registered users of this self-hosted instance: everyone gets the
+// subscription features. The first registered user becomes an admin, see saveNewUser.
+export function newUserDefaults () {
+  return {
+    'purchased.plan': {
+      planId: 'basic',
+      customerId: 'habitrpg',
+      dateCreated: new Date(),
+      dateUpdated: new Date(),
+      gemsBought: 0,
+    },
+  };
+}
+
+// A document with a fixed id, so that only one of several registrations running at the same
+// time can insert it. It stays after the first user is created, so that deleting all users
+// later does not hand out admin rights again.
+const FIRST_ADMIN_CLAIM = { _id: 'firstAdmin' };
+
+async function claimFirstAdmin (userId) {
+  try {
+    await mongoose.connection.collection('instance')
+      .insertOne({ ...FIRST_ADMIN_CLAIM, userId, claimedAt: new Date() });
+    return true;
+  } catch (err) {
+    if (err.code === 11000) return false; // another registration claimed it first
+    throw err;
+  }
+}
+
+// Saves a newly registered user, as an admin if it is the first user of the instance.
+// The role is only claimed after the user was saved, so a registration that fails cannot
+// keep it from a concurrent one that succeeds.
+export async function saveNewUser (user) {
+  const mayBeFirstUser = !await User.exists({});
+  const savedUser = await user.save();
+
+  if (mayBeFirstUser && await claimFirstAdmin(savedUser._id)) {
+    await User.updateOne({ _id: savedUser._id }, { $set: { 'permissions.fullAccess': true } }).exec();
+    savedUser.permissions.fullAccess = true;
+  }
+
+  return savedUser;
+}
+
+export async function loginSocial (req, res) {
   let existingUser = res.locals.user;
-  const { network, allowRegister = true, username = generateUsername() } = req.body;
+  const { network, allowRegister = true } = req.body;
 
   const isSupportedNetwork = common.constants.SUPPORTED_SOCIAL_NETWORKS
     .find(supportedNetwork => supportedNetwork.key === network);
   if (!isSupportedNetwork) throw new BadRequest(res.t('unsupportedNetwork'));
+  if (network === 'logto' && !isLogtoEnabled()) throw new BadRequest(res.t('unsupportedNetwork'));
 
   let profile = {};
   if (network === 'apple') {
     profile = await appleProfile(req);
+  } else if (network === 'logto') {
+    profile = logtoProfile(req);
   } else {
     const accessToken = req.body.authResponse.access_token;
     profile = await _passportProfile(network, accessToken);
   }
 
-  if (!profile.id) throw new BadRequest(res.t('invalidData'));
+  if (!profile.id) throw new BadRequest(res.t(network === 'logto' ? 'logtoSignInFailed' : 'invalidData'));
 
   let user = await User.findOne({
     [`auth.${network}.id`]: profile.id,
@@ -85,6 +140,12 @@ export async function loginSocial (req, res) { // eslint-disable-line import/pre
   if (!existingUser && email) {
     // TODO we load the whole user object here. Is that necessary?
     existingUser = await User.findOne({ 'auth.local.email': email }).exec();
+    // Habitica does not verify email addresses, so the existing account may have been registered
+    // by someone else with the victim's address in advance. Linking it automatically would give
+    // them access, so users have to log in and connect Logto in the settings instead.
+    if (existingUser && network === 'logto') {
+      throw new NotAuthorized(res.t('logtoAccountExists'));
+    }
   }
 
   if (!allowRegister && !existingUser) {
@@ -101,6 +162,10 @@ export async function loginSocial (req, res) { // eslint-disable-line import/pre
     throw new NotFound(res.t('userNotFound'));
   }
 
+  // New accounts can only be created via an invitation (handled by the local registration)
+  if (!existingUser && INVITE_ONLY) throw new NotAuthorized(res.t('inviteOnly'));
+
+  const username = req.body.username || profile.username || generateUsername();
   let sanitizedUsername = username.replace(/[^a-zA-Z0-9_-]/g, '');
   const issues = verifyUsername(sanitizedUsername, res, true);
   if (issues.length > 0) {
@@ -142,13 +207,14 @@ export async function loginSocial (req, res) { // eslint-disable-line import/pre
       flags: {
         verifiedUsername: true,
       },
+      ...newUserDefaults(),
     };
     user = new User(user);
     user.registeredThrough = req.headers['x-client']; // Not saved, used to create the correct tasks based on the device used
     trackRegistrationEvent({ user, method: network, ipAddress: req.ip });
   }
 
-  const savedUser = await user.save();
+  const savedUser = existingUser ? await user.save() : await saveNewUser(user);
 
   if (!existingUser) {
     savedUser.newUser = true;

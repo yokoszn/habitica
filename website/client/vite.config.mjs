@@ -144,6 +144,10 @@ export default defineConfig({
         target: DEV_BASE_URL,
         changeOrigin: true,
       },
+      '^/logto': {
+        target: DEV_BASE_URL,
+        changeOrigin: true,
+      },
       '^/logout-server': {
         target: DEV_BASE_URL,
         changeOrigin: true,

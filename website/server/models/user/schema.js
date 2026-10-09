@@ -54,6 +54,7 @@ export const UserSchema = new Schema({
       default: () => ({}),
     },
     apple: { $type: Schema.Types.Mixed, default: () => ({}) },
+    logto: { $type: Schema.Types.Mixed, default: () => ({}) },
     local: {
       email: {
         $type: String,

@@ -8,6 +8,7 @@ function getAuthenticationMethod (user) {
   if (user.auth.google && user.auth.google.id) return 'google';
   if (user.auth.facebook && user.auth.facebook.id) return 'facebook';
   if (user.auth.apple && user.auth.apple.id) return 'apple';
+  if (user.auth.logto && user.auth.logto.id) return 'logto';
   return 'local';
 }
 

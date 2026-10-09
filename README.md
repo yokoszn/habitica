@@ -118,6 +118,22 @@ architecture-beta
 
 Or the static client files could be served from a different host (e.g., a static file hosting).
 
+## Single Sign-On with Logto
+
+Users can sign in with [Logto](https://logto.io) (self-hosted or Logto Cloud) in addition to username and password. To enable it, create a *Traditional Web* application in the Logto console and:
+
+1. add `<BASE_URL>/logto/sign-in-callback` as a redirect URI (e.g., `https://habitica.example.com/logto/sign-in-callback`)
+2. set the following environment variables (or keys in `config.json`) for the server:
+
+```yaml
+      - LOGTO_ENDPOINT=https://auth.example.com # the URL of your Logto instance
+      - LOGTO_APP_ID=your_app_id
+      - LOGTO_APP_SECRET=your_app_secret
+      - LOGTO_DISPLAY_NAME=Logto # optional, the name shown on the "Continue with ..." button
+```
+
+The login and registration pages then show a "Continue with Logto" button, and existing users can connect Logto to their account in the general settings. Signing in with Logto creates a new account, using the Logto username if it is available and the email address if Logto reports it as verified. If an account with that email address exists already, the user is asked to log in with their password and connect Logto in the settings instead (Habitica does not verify email addresses, so the existing account could have been registered by someone else). With `INVITE_ONLY=true`, Logto can only be used for existing accounts: invited users register with the invitation link first and can then connect Logto in the settings.
+
 ## Readme of the Upstream Habitica Repository
 
 ### Public pull request submissions paused as of August 4, 2026
