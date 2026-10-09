@@ -341,6 +341,38 @@ describe('Post /groups/:groupId/invite', () => {
         });
     });
 
+    it('returns an error when an invite email is not a valid email address', async () => {
+      await expect(inviter.post(`/groups/${group._id}/invite`, {
+        emails: [{ name: 'test', email: 'a@evil1.example, b@evil2.example' }],
+      }))
+        .to.eventually.be.rejected.and.eql({
+          code: 400,
+          error: 'BadRequest',
+          message: t('notAnEmail'),
+        });
+    });
+
+    it('returns an error when an invite email is not a string', async () => {
+      await generateUser();
+
+      await expect(inviter.post(`/groups/${group._id}/invite`, {
+        emails: [{ name: 'test', email: { $ne: null } }],
+      }))
+        .to.eventually.be.rejected.and.eql({
+          code: 400,
+          error: 'BadRequest',
+          message: t('notAnEmail'),
+        });
+    });
+
+    it('invites a user by email when the name is very long', async () => {
+      const res = await inviter.post(`/groups/${group._id}/invite`, {
+        emails: [{ name: 'a'.repeat(1000), email: 'test@habitica.com' }],
+      });
+
+      expect(res).to.eql(['test@habitica.com']);
+    });
+
     it('returns an error when emails is not an array', async () => {
       await expect(inviter.post(`/groups/${group._id}/invite`, {
         emails: { testInvite },
