@@ -75,6 +75,42 @@ describe('POST /tasks/:taskId/assign/:memberId', () => {
       });
   });
 
+  it('returns error when an assignee is not a member of the group', async () => {
+    const nonMember = await generateUser();
+
+    await expect(user.post(`/tasks/${task._id}/assign`, [member._id, nonMember._id]))
+      .to.eventually.be.rejected.and.eql({
+        code: 401,
+        error: 'NotAuthorized',
+        message: t('userMustBeMember'),
+      });
+
+    await nonMember.sync();
+    await member.sync();
+    expect(nonMember.notifications.find(n => n.type === 'GROUP_TASK_ASSIGNED')).to.not.exist;
+    expect(member.notifications.find(n => n.type === 'GROUP_TASK_ASSIGNED')).to.not.exist;
+    const groupTask = await user.get(`/tasks/group/${guild._id}`);
+    expect(groupTask[0].group.assignedUsers).to.not.include(nonMember._id);
+  });
+
+  it('returns error when the assignees are not an array', async () => {
+    await expect(user.post(`/tasks/${task._id}/assign`, { 0: member._id }))
+      .to.eventually.be.rejected.and.have.property('code', 400);
+  });
+
+  it('escapes the task text in the notification', async () => {
+    const htmlTask = await user.post(`/tasks/group/${guild._id}`, {
+      text: '<img src=x onerror=alert(1)>',
+      type: 'todo',
+    });
+    await user.post(`/tasks/${htmlTask._id}/assign`, [member._id]);
+    await member.sync();
+
+    const notification = member.notifications.find(n => n.type === 'GROUP_TASK_ASSIGNED');
+    expect(notification.data.message).to.include('&lt;img src=x onerror=alert(1)&gt;');
+    expect(notification.data.message).to.not.include('<img');
+  });
+
   it('returns error when non leader tries to create a task', async () => {
     await expect(member2.post(`/tasks/${task._id}/assign`, [member._id]))
       .to.eventually.be.rejected.and.eql({
