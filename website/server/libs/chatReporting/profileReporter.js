@@ -20,9 +20,11 @@ export default class ProfileReporter extends ChatReporter {
     const validationErrors = this.req.validationErrors();
     if (validationErrors) throw validationErrors;
 
+    // The flagged user is sent back to the reporter, so only load public fields
+    // (the full auth object contains the email address and a pending password reset code)
     const flaggedUser = await User.findOne(
       { _id: this.req.params.memberId },
-      { auth: 1, profile: 1 },
+      { 'auth.local.username': 1, profile: 1 },
     ).exec();
     if (!flaggedUser) {
       throw new NotFound(this.res.t('userWithIDNotFound', { userId: this.req.params.memberId }));
