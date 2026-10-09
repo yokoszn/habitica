@@ -20,6 +20,7 @@ import setupRedis from '../libs/redis';
 const IS_TEST = nconf.get('IS_TEST');
 const RATE_LIMITER_ENABLED = nconf.get('RATE_LIMITER_ENABLED') === 'true';
 const REDIS_HOST = nconf.get('REDIS_HOST');
+const REDIS_URL = nconf.get('REDIS_URL');
 const REDIS_PASSWORD = nconf.get('REDIS_PASSWORD');
 const REDIS_PORT = nconf.get('REDIS_PORT');
 const LIVELINESS_PROBE_KEY = nconf.get('LIVELINESS_PROBE_KEY');
@@ -29,10 +30,26 @@ const REGISTRATION_COST = nconf.get('RATE_LIMITER_REGISTRATION_COST') || 10;
 const LOGIN_COST = nconf.get('RATE_LIMITER_LOGIN_COST') || 10;
 const IP_RATE_LIMIT_COST = nconf.get('RATE_LIMITER_IP_COST') || 5;
 
+// Unauthenticated authentication routes. On these the x-api-user header is not verified,
+// so the limit is applied per IP address only.
+const AUTH_PATHS = [
+  '/user/auth/local/login',
+  '/user/auth/local/register',
+  '/user/auth/social',
+  '/user/auth/apple',
+  '/user/auth/verify-username',
+  '/user/auth/check-email',
+  '/user/reset-password',
+  '/user/auth/reset-password-set-new-one',
+];
+
 let redisClient;
 
-if (RATE_LIMITER_ENABLED && !IS_TEST) {
+// Redis is only needed to share the limits between several server processes,
+// without it they are kept in the memory of the process.
+if (RATE_LIMITER_ENABLED && !IS_TEST && (REDIS_HOST || REDIS_URL)) {
   redisClient = setupRedis({
+    url: REDIS_URL,
     host: REDIS_HOST,
     password: REDIS_PASSWORD,
     port: REDIS_PORT,
@@ -79,7 +96,7 @@ export default function setupRateLimiter (options = {}) {
   if (!RATE_LIMITER_ENABLED) {
     return (req, res, next) => next();
   }
-  if (IS_TEST) {
+  if (!redisClient) {
     rateLimiter = new RateLimiterMemory({
       ...rateLimiterOpts,
     });
@@ -93,15 +110,18 @@ export default function setupRateLimiter (options = {}) {
     if (!RATE_LIMITER_ENABLED) return next();
     if (LIVELINESS_PROBE_KEY && req.query.liveliness === LIVELINESS_PROBE_KEY) return next();
 
-    const userId = req.header('x-api-user');
+    // req.path is relative to where the limiter is mounted (e.g. /user/auth/local/login).
+    // Routes are matched case-insensitively and with an optional trailing slash.
+    const url = (req.path || '').toLowerCase().replace(/\/+$/, '');
+    const isAuthPath = AUTH_PATHS.some(authPath => url.endsWith(authPath));
+    const userId = isAuthPath ? undefined : req.header('x-api-user');
 
     let cost = 1;
-    const url = req.path || '';
-    if (url.indexOf('/user/auth/local/register') > 0) {
+    if (url.endsWith('/user/auth/local/register')) {
       cost = options.registrationCost || REGISTRATION_COST;
-    } else if (url.indexOf('/user/auth/local/login') > 0) {
+    } else if (url.endsWith('/user/auth/local/login')) {
       cost = options.loginCost || LOGIN_COST;
-    } else if (url.indexOf('/auth/verify-username') > 0) {
+    } else if (url.endsWith('/user/auth/verify-username')) {
       cost = 1; // Verifying username might happen multiple times during typing
     } else if (!userId) {
       cost = options.ipRateLimitCost || IP_RATE_LIMIT_COST;
