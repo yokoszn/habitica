@@ -4,25 +4,32 @@ on:
     - cron: "38 1 * * *" # run every night
   workflow_dispatch: # allow manual running
 
+permissions:
+  contents: read
+
 jobs:
   Rebase:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # force-pushes the rebased branch
     outputs:
       rebased: ${{ steps.rebase.outputs.rebased }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 1000 # greater than the number of commits made in the fork
+          persist-credentials: true # needed for the push below # zizmor: ignore[artipacked]
 
       - name: Rebase on Upstream Release Branch
         id: rebase
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -ex
 
           UPSTREAM="HabitRPG/habitica"
           if [ -z $UPSTREAM ]; then
-              echo ${{ github.token }} | gh auth login --with-token
               UPSTREAM=$(gh api repos/:owner/:repo --jq .parent.full_name)
               if [ -z $UPSTREAM ]; then echo "Can't find upstream" >&2 && exit 1; fi
           fi
@@ -52,10 +59,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: self-host
           fetch-depth: 1
+          persist-credentials: false
       - name: Build Container
         uses: ./.github/actions/build-container
         with:

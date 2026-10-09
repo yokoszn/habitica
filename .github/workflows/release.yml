@@ -5,31 +5,49 @@ on:
     - cron: "20 3 * * *" # run every night
   workflow_dispatch: # allow manual running
 
+permissions:
+  contents: read
+
 jobs:
   BranchAndRebase:
     outputs:
       version: ${{ steps.version.outputs.version }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # pushes the release branch
     steps:
       - name: Retrieve version
-        run: echo "version=$(git ls-remote --sort='-version:refname' --tags --refs https://github.com/HabitRPG/habitica.git | head -n1 | sed 's/.*\/v\?//')" >> $GITHUB_OUTPUT
+        run: |
+          version=$(git ls-remote --sort='-version:refname' --tags --refs https://github.com/HabitRPG/habitica.git | head -n1 | sed 's/.*\/v\?//')
+          # The version comes from an upstream tag name and is used in shell commands and image tags
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Unexpected upstream version '$version'" >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
         id: version
       - name: Check release branch exists already
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          REPOSITORY: ${{ github.repository }}
         run: |
-          if git ls-remote --sort='-version:refname' --refs https://github.com/awinterstein/habitica.git | grep "releases/v${{ steps.version.outputs.version }}"; then
-            echo "exists=true" >> $GITHUB_OUTPUT
+          if git ls-remote --sort='-version:refname' --refs "https://github.com/${REPOSITORY}.git" | grep "releases/v${VERSION}$"; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
           else
-            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "exists=false" >> "$GITHUB_OUTPUT"
           fi
         id: exists
       - name: Checkout
         if: steps.exists.outputs.exists != 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 1000 # greater than the number of commits you made
+          persist-credentials: true # needed for the push below # zizmor: ignore[artipacked]
       - id: rebase
         if: steps.exists.outputs.exists != 'true'
         name: Rebase on upstream release branch
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
           set -ex
 
@@ -37,12 +55,12 @@ jobs:
           git config --local user.name  "GitHub Actions"
 
           git remote add upstream https://github.com/HabitRPG/habitica.git
-          git fetch --tags upstream v${{ steps.version.outputs.version }}
+          git fetch --tags upstream "v${VERSION}"
 
-          git checkout -b "releases/v${{ steps.version.outputs.version }}"
-          git rebase "v${{ steps.version.outputs.version }}"
+          git checkout -b "releases/v${VERSION}"
+          git rebase "v${VERSION}"
 
-          git push origin $(git branch --show-current) --force-with-lease
+          git push origin "$(git branch --show-current)" --force-with-lease
 
         shell: bash
 
@@ -53,13 +71,16 @@ jobs:
     needs: BranchAndRebase
     steps:
       - name: Check if container exists already
+        env:
+          VERSION: ${{ needs.BranchAndRebase.outputs.version }}
+          DOCKER_HUB_USER: ${{ secrets.DOCKER_HUB_USER }}
         run: |
-          if wget -q -O - "https://hub.docker.com/v2/namespaces/${{ secrets.DOCKER_HUB_USER }}/repositories/habitica-server/tags?page_size=10" | grep -o '"name": *"[^"]*' | grep -q ${{ needs.BranchAndRebase.outputs.version }} \
-              && wget -q -O - "https://hub.docker.com/v2/namespaces/${{ secrets.DOCKER_HUB_USER }}/repositories/habitica-client/tags?page_size=10" | grep -o '"name": *"[^"]*' | grep -q ${{ needs.BranchAndRebase.outputs.version }}; then
+          if wget -q -O - "https://hub.docker.com/v2/namespaces/${DOCKER_HUB_USER}/repositories/habitica-server/tags?page_size=10" | grep -o '"name": *"[^"]*' | grep -qF "$VERSION" \
+              && wget -q -O - "https://hub.docker.com/v2/namespaces/${DOCKER_HUB_USER}/repositories/habitica-client/tags?page_size=10" | grep -o '"name": *"[^"]*' | grep -qF "$VERSION"; then
             echo "Container images exist already."
-            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "exists=true" >> "$GITHUB_OUTPUT"
           else
-            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "exists=false" >> "$GITHUB_OUTPUT"
           fi
         id: exists
 
@@ -68,7 +89,9 @@ jobs:
     needs: [BranchAndRebase, CheckContainerExistence]
     if: needs.CheckContainerExistence.outputs.exists == 'false'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Build and push container
         uses: ./.github/actions/build-container
         with:
