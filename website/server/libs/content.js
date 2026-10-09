@@ -98,15 +98,19 @@ export function hashForFilter (filter) {
   return String(hash);
 }
 
+// The filter comes from the query string. The objects have no prototype, so that keys like
+// "__proto__" cannot modify Object.prototype (which would grant every user all permissions).
 export function buildFilterObject (filter) {
-  const filterObj = {};
+  const filterObj = Object.create(null);
   filter.split(',').forEach(item => {
     if (item.includes('.')) {
       const [key, subkey] = item.split('.');
       if (!filterObj[key]) {
-        filterObj[key] = {};
+        filterObj[key] = Object.create(null);
       }
-      filterObj[key][subkey.trim()] = true;
+      if (typeof filterObj[key] === 'object') {
+        filterObj[key][subkey.trim()] = true;
+      }
     } else {
       filterObj[item.trim()] = true;
     }
@@ -114,10 +118,23 @@ export function buildFilterObject (filter) {
   return filterObj;
 }
 
-export function serveContent (res, language, filter, isProd) {
+// Only the filters used by the official clients are cached on disk. Caching arbitrary filters
+// would let anyone fill the disk with one cache file per filter string.
+const CACHEABLE_FILTERS = [
+  '',
+  ANDROID_FILTER,
+  IOS_FILTER,
+  V4_FILTER,
+  [V4_FILTER, ANDROID_FILTER].join(','),
+  [V4_FILTER, IOS_FILTER].join(','),
+];
+
+export function serveContent (res, language, requestedFilter, isProd) {
+  // Repeated query parameters are parsed into an array
+  const filter = typeof requestedFilter === 'string' ? requestedFilter : '';
   // Build usable filter object
   const filterObj = buildFilterObject(filter);
-  if (isProd) {
+  if (isProd && CACHEABLE_FILTERS.includes(filter)) {
     const today = new Date();
     if (CACHED_DATE && (getDay(today) !== getDay(CACHED_DATE)
       || getMonth(today) !== getMonth(CACHED_DATE))) {

@@ -4,7 +4,9 @@ import {
 } from '../libs/errors';
 
 export default function ensureDevelopmentMode (req, res, next) {
-  if (nconf.get('DEBUG_ENABLED') && nconf.get('BASE_URL') !== 'https://habitica.com') {
+  // Configuration values are strings, and "false" must not enable the routes
+  const enabled = [true, 'true'].includes(nconf.get('DEBUG_ENABLED'));
+  if (enabled && nconf.get('BASE_URL') !== 'https://habitica.com') {
     next();
   } else {
     next(new NotFound());

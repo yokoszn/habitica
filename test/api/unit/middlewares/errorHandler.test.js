@@ -1,3 +1,4 @@
+import cloneDeep from 'lodash/cloneDeep';
 import {
   generateRes,
   generateReq,
@@ -173,6 +174,93 @@ describe('errorHandler', () => {
       query: req.query,
       httpCode: 400,
       isHandledError: true,
+    });
+  });
+
+  it('redacts passwords, reset codes and credentials in the logged request data', () => {
+    req.headers = {
+      'x-api-user': 'user-id',
+      'x-api-key': 'api-key',
+      'x-client': 'habitica-web',
+      authorization: 'Basic dXNlcjpwYXNz',
+      cookie: 'connect.sid=session',
+    };
+    req.body = {
+      password: 'old-password',
+      newPassword: 'new-password',
+      confirmPassword: 'new-password',
+      oldPassword: 'old-password',
+      code: 'reset-code',
+      id_token: 'apple-token',
+      authResponse: { access_token: 'social-token' },
+      ops: [{ type: 'update', apiToken: 'token' }],
+      username: 'username',
+      email: 'user@example.com',
+    };
+    req.query = { code: 'unsubscribe-code', lang: 'en' };
+    const originalBody = cloneDeep(req.body);
+
+    errorHandler(new BadRequest(), req, res, next);
+
+    expect(logger.error).to.be.calledOnce;
+    const [, logData] = logger.error.firstCall.args;
+    expect(logData.headers).to.eql({
+      'x-api-user': 'user-id',
+      'x-api-key': '[REDACTED]',
+      'x-client': 'habitica-web',
+      authorization: '[REDACTED]',
+      cookie: '[REDACTED]',
+    });
+    expect(logData.body).to.eql({
+      password: '[REDACTED]',
+      newPassword: '[REDACTED]',
+      confirmPassword: '[REDACTED]',
+      oldPassword: '[REDACTED]',
+      code: '[REDACTED]',
+      id_token: '[REDACTED]',
+      authResponse: { access_token: '[REDACTED]' },
+      ops: [{ type: 'update', apiToken: '[REDACTED]' }],
+      username: 'username',
+      email: 'user@example.com',
+    });
+    expect(logData.query).to.eql({ code: '[REDACTED]', lang: 'en' });
+    // the request itself is not modified
+    expect(req.body).to.eql(originalBody);
+  });
+
+  it('truncates deeply nested request data in the logs', () => {
+    let nested = { newPassword: 'new-password' };
+    for (let i = 0; i < 5000; i += 1) nested = { nested };
+    req.body = nested;
+
+    errorHandler(new BadRequest(), req, res, next);
+
+    expect(logger.error).to.be.calledOnce;
+    expect(JSON.stringify(logger.error.firstCall.args[1].body)).to.not.include('new-password');
+    expect(res.status).to.be.calledWith(400);
+  });
+
+  it('redacts sensitive values of express-validator errors in the logs only', () => {
+    const error = [
+      { param: 'username', msg: 'invalid username', value: 'user name' },
+      { param: 'password', msg: 'passwords do not match', value: 'secret-password' },
+    ];
+
+    errorHandler(error, req, res, next);
+
+    expect(logger.error).to.be.calledOnce;
+    expect(logger.error.firstCall.args[0]).to.eql([
+      { param: 'username', msg: 'invalid username', value: 'user name' },
+      { param: 'password', msg: 'passwords do not match', value: '[REDACTED]' },
+    ]);
+    expect(res.json).to.be.calledWith({
+      success: false,
+      error: 'BadRequest',
+      message: 'Invalid request parameters.',
+      errors: [
+        { param: 'username', value: 'user name', message: 'invalid username' },
+        { param: 'password', value: 'secret-password', message: 'passwords do not match' },
+      ],
     });
   });
 });

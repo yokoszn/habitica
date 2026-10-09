@@ -29,6 +29,26 @@ describe('developmentMode middleware', () => {
     expect(calledWith[0] instanceof NotFound).to.equal(true);
   });
 
+  it('returns not found when disabled with the string "false"', () => {
+    nconfStub.withArgs('DEBUG_ENABLED').returns('false');
+    nconfStub.withArgs('BASE_URL').returns('http://localhost:3000');
+
+    ensureDevelopmentMode(req, res, next);
+
+    const calledWith = next.getCall(0).args;
+    expect(calledWith[0] instanceof NotFound).to.equal(true);
+  });
+
+  it('passes when enabled with the string "true"', () => {
+    nconfStub.withArgs('DEBUG_ENABLED').returns('true');
+    nconfStub.withArgs('BASE_URL').returns('http://localhost:3000');
+
+    ensureDevelopmentMode(req, res, next);
+
+    expect(next).to.be.calledOnce;
+    expect(next.getCall(0).args).to.have.length(0);
+  });
+
   it('returns not found when intentionally disabled', () => {
     nconfStub.withArgs('DEBUG_ENABLED').returns(false);
     nconfStub.withArgs('BASE_URL').returns('http://localhost:3000');

@@ -41,6 +41,7 @@ export default {
   directionUpDown: '"direction" is required and must be "up" or "down".',
   invalidTaskIdentifier: 'A task is identified by its UUID or alias.',
   invalidTaskScorings: 'This API route expects a body in the form of [{id, direction}].',
+  tooManyTaskScorings: 'This API route accepts at most <%= maxScorings %> task scorings per request.',
   summaryLengthExceedsMax: 'Summary length is too high.',
 
   socialFlowUserNotFound: 'User not found, but social auth OK with email:',

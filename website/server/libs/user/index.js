@@ -74,6 +74,9 @@ const acceptablePUTPaths = _.reduce(UserSchema.paths, (accumulator, val, leaf) =
 const restrictedPUTSubPaths = [
   'stats.class',
 
+  // reports against the user's profile, only moderators may clear them
+  'profile.flags',
+
   'preferences.disableClasses',
   'preferences.sleep',
   'preferences.webhooks',

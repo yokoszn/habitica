@@ -24,7 +24,7 @@
       </div>
       <blockquote>
         <div
-          v-html="abuseObject.text"
+          v-markdown="abuseObject.text"
         >
         </div>
       </blockquote>

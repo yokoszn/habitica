@@ -56,7 +56,7 @@ RUN echo '{\n\
     "ENABLE_STACKDRIVER_TRACING": "false",\n\
     "BLOCKED_IPS": "",\n\
     "LOG_AMPLITUDE_EVENTS": "false",\n\
-    "RATE_LIMITER_ENABLED": "false",\n\
+    "RATE_LIMITER_ENABLED": "true",\n\
     "CONTENT_SWITCHOVER_TIME_OFFSET": 8\n\
 }' > /usr/src/habitica/config.json
 

@@ -1,4 +1,5 @@
 import isUUID from 'validator/lib/isUUID';
+import escape from 'lodash/escape';
 import { authWithHeaders } from '../../../middlewares/auth';
 import * as Tasks from '../../../models/task';
 import { model as Group } from '../../../models/group';
@@ -197,6 +198,7 @@ api.assignTask = {
 
     const { user } = res.locals;
     const assignedUserIds = req.body;
+    if (!Array.isArray(assignedUserIds)) throw new BadRequest('Assigned users must be UUIDs');
     for (const userId of assignedUserIds) {
       if (!isUUID(userId)) throw new BadRequest('Assigned users must be UUIDs');
     }
@@ -212,16 +214,22 @@ api.assignTask = {
       throw new NotAuthorized(res.t('onlyGroupTasksCanBeAssigned'));
     }
 
-    const groupFields = `${requiredGroupFields} purchased chat managers`;
+    // type is needed by group.isMember()
+    const groupFields = `${requiredGroupFields} type purchased chat managers`;
     const group = await Group.getGroup({ user, groupId: task.group.id, fields: groupFields });
     if (groupSubscriptionNotFound(group)) throw new NotFound(res.t('groupNotFound'));
 
     if (canNotEditTasks(group, user)) throw new NotAuthorized(res.t('onlyGroupLeaderCanEditTasks'));
 
     const assignedUsers = await User.find({ _id: { $in: assignedUserIds } }).exec();
+    // Only members of the group can be assigned (and receive the notification)
+    if (assignedUsers.some(userToAssign => !group.isMember(userToAssign))) {
+      throw new NotAuthorized(res.t('userMustBeMember'));
+    }
     const promises = [];
-    const taskText = task.text;
-    const userName = `@${user.auth.local.username}`;
+    // The notification message is rendered as HTML
+    const taskText = escape(task.text);
+    const userName = escape(`@${user.auth.local.username}`);
 
     for (const userToAssign of assignedUsers) {
       if (user._id !== userToAssign._id) {
@@ -266,6 +274,7 @@ api.unassignTask = {
     const { user } = res.locals;
     const { assignedUserId } = req.params;
     const assignedUser = await User.findById(assignedUserId).exec();
+    if (!assignedUser) throw new NotFound(res.t('userWithIDNotFound', { userId: assignedUserId }));
 
     const { taskId } = req.params;
     const task = await Tasks.Task.findByIdOrAlias(taskId, user._id);
@@ -357,7 +366,11 @@ api.taskNeedsWork = {
     await scoreTasks(assignedUser, [{ id: task._id, direction: 'down' }], req, res);
     if (assignedUserId !== user._id) {
       assignedUser.addNotification('GROUP_TASK_NEEDS_WORK', {
-        message: res.t('taskNeedsWork', { taskText: task.text, managerName: user.auth.local.username }, assignedUser.preferences.language),
+        // The message is rendered as HTML
+        message: res.t('taskNeedsWork', {
+          taskText: escape(task.text),
+          managerName: escape(user.auth.local.username),
+        }, assignedUser.preferences.language),
         task: {
           id: task._id,
           text: task.text,

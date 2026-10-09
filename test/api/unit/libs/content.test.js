@@ -50,6 +50,39 @@ describe('contentLib', () => {
     expect(resSpy.send).to.have.been.calledOnce;
   });
 
+  it('ignores a filter that is not a string', () => {
+    const resSpy = generateRes();
+    contentLib.serveContent(resSpy, 'en', ['backgroundsFlat', 'gear.flat'], false);
+    expect(resSpy.send).to.have.been.calledOnce;
+  });
+
+  describe('buildFilterObject', () => {
+    afterEach(() => {
+      delete Object.prototype.userSupport; // eslint-disable-line no-extend-native
+      delete Object.prototype.moderator; // eslint-disable-line no-extend-native
+    });
+
+    it('builds nested filters', () => {
+      const filterObj = contentLib.buildFilterObject('backgroundsFlat,gear.flat');
+      expect(filterObj.backgroundsFlat).to.equal(true);
+      expect(filterObj.gear.flat).to.equal(true);
+    });
+
+    it('does not modify Object.prototype', () => {
+      contentLib.buildFilterObject('__proto__.userSupport,constructor.prototype,__proto__.moderator');
+      expect({}.userSupport).to.be.undefined;
+      expect({}.moderator).to.be.undefined;
+    });
+
+    it('works with the content filtering', () => {
+      const filterObj = contentLib.buildFilterObject('backgroundsFlat,gear.tree');
+      const response = contentLib.localizeContentData(content, 'en', filterObj);
+      expect(response.backgroundsFlat).to.not.exist;
+      expect(response.gear.tree).to.not.exist;
+      expect(response.gear.flat).to.exist;
+    });
+  });
+
   describe('caches content', async () => {
     let resSpy;
     beforeEach(() => {
@@ -83,15 +116,23 @@ describe('contentLib', () => {
     });
 
     it('caches filtered requests', async () => {
-      const filter = 'backgroundsFlat,gear.flat';
+      const filter = contentLib.V4_FILTER;
       const hash = contentLib.hashForFilter(filter);
       expect(fs.existsSync(`${contentLib.CONTENT_CACHE_PATH}en${hash}.json`)).to.be.false;
       contentLib.serveContent(resSpy, 'en', filter, true);
       expect(fs.existsSync(`${contentLib.CONTENT_CACHE_PATH}en${hash}.json`)).to.be.true;
     });
 
-    it('serves filtered cached requests', async () => {
+    it('does not cache requests with other filters', async () => {
       const filter = 'backgroundsFlat,gear.flat';
+      const hash = contentLib.hashForFilter(filter);
+      contentLib.serveContent(resSpy, 'en', filter, true);
+      expect(fs.existsSync(`${contentLib.CONTENT_CACHE_PATH}en${hash}.json`)).to.be.false;
+      expect(resSpy.send).to.have.been.calledOnce;
+    });
+
+    it('serves filtered cached requests', async () => {
+      const filter = contentLib.V4_FILTER;
       const hash = contentLib.hashForFilter(filter);
       fs.writeFileSync(
         `${contentLib.CONTENT_CACHE_PATH}en${hash}.json`,

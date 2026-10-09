@@ -1,3 +1,6 @@
+import escape from 'lodash/escape';
+import unescape from 'lodash/unescape';
+
 export function getDropClass ({ type, key }) {
   let dropClass = '';
 
@@ -48,4 +51,16 @@ export function round (number, nDigits) {
 
 export function getXPMessage (val) {
   return `${getSign(val)} ${round(val)}`;
+}
+
+// Group task notification messages are built on the server from HTML templates and
+// rendered with v-html. Newer messages have the task text escaped, older ones do not:
+// normalize to the unescaped text, escape everything and only restore the plain
+// <span class="notification-..."> wrappers used by the templates.
+export function sanitizeTaskMessage (message) {
+  if (typeof message !== 'string') return '';
+
+  return escape(unescape(message))
+    .replace(/&lt;span class=&quot;(notification-[a-z-]+)&quot;&gt;/g, '<span class="$1">')
+    .replace(/&lt;\/span&gt;/g, '</span>');
 }

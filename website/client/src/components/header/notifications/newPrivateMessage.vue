@@ -7,7 +7,7 @@
     @click="action"
   >
     <div slot="content">
-      <span v-html="$t('userSentMessage', {user: notification.data.sender.name})"></span>
+      <span v-html="$t('userSentMessage', {user: senderName})"></span>
       <div class="notification-small notification-ellipses">
         {{ notification.data.excerpt }}
       </div>
@@ -16,6 +16,7 @@
 </template>
 
 <script>
+import escape from 'lodash/escape';
 import BaseNotification from './base';
 import { PAGES } from '@/libs/consts';
 
@@ -24,6 +25,11 @@ export default {
     BaseNotification,
   },
   props: ['notification', 'canRemove'],
+  computed: {
+    senderName () {
+      return escape(this.notification.data.sender.name);
+    },
+  },
   methods: {
     action () {
       this.$router.push(PAGES.PRIVATE_MESSAGES);

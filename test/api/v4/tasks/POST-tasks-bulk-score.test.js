@@ -5,6 +5,7 @@ import {
   translate as t,
   server,
 } from '../../../helpers/api-integration/v4';
+import { apiError } from '../../../../website/server/libs/apiError';
 
 describe('POST /tasks/bulk-score', () => {
   let user;
@@ -486,6 +487,30 @@ describe('POST /tasks/bulk-score', () => {
       const lastHistoryEntry = updatedTask.history[updatedTask.history.length - 1];
       expect(lastHistoryEntry.scoredUp).to.equal(3);
       expect(lastHistoryEntry.scoredDown).to.equal(1);
+    });
+
+    it('scores the same habit up to 100 times in one request', async () => {
+      const scorings = Array(100).fill({ id: habit.id, direction: 'up' });
+      const res = await user.post('/tasks/bulk-score', scorings);
+
+      expect(res.tasks.length).to.equal(100);
+      const updatedTask = await user.get(`/tasks/${habit._id}`);
+      expect(updatedTask.counterUp).to.equal(100);
+    });
+
+    it('refuses more than 100 scorings in one request', async () => {
+      const scorings = Array(101).fill({ id: habit.id, direction: 'up' });
+
+      await expect(user.post('/tasks/bulk-score', scorings)).to.eventually.be.rejected.and.eql({
+        code: 400,
+        error: 'BadRequest',
+        message: apiError('tooManyTaskScorings', { maxScorings: 100 }),
+      });
+
+      const updatedTask = await user.get(`/tasks/${habit._id}`);
+      expect(updatedTask.counterUp).to.equal(0);
+      const updatedUser = await user.get('/user');
+      expect(updatedUser.stats.exp).to.equal(user.stats.exp);
     });
   });
 

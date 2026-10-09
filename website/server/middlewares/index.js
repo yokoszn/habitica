@@ -47,7 +47,7 @@ const DISABLE_BASE_URL_ENFORCEMENT = nconf.get('DISABLE_BASE_URL_ENFORCEMENT') =
 // const PUBLIC_DIR = path.join(__dirname, '/../../client');
 
 const SESSION_SECRET = nconf.get('SESSION_SECRET');
-const TEN_YEARS = 1000 * 60 * 60 * 24 * 365 * 10;
+const THIRTY_DAYS = 1000 * 60 * 60 * 24 * 30;
 
 export default function attachMiddlewares (app, server) {
   setupExpress(app);
@@ -116,8 +116,12 @@ export default function attachMiddlewares (app, server) {
     name: 'connect:sess', // Used to keep backward compatibility with Express 3 cookies
     secret: SESSION_SECRET,
     httpOnly: true, // so cookies are not accessible with browser JS
-    // TODO what about https only (secure) ?
-    maxAge: TEN_YEARS,
+    // Not sent with cross-site subrequests (CSRF), but with top-level navigations such as the
+    // redirect back from Logto. The Secure flag is set automatically for HTTPS requests (this
+    // needs X-Forwarded-Proto from the reverse proxy).
+    sameSite: 'lax',
+    // API requests set the session again, so it only expires for users who stopped using the site
+    maxAge: THIRTY_DAYS,
   }));
 
   // Initialize Passport! Also use passport.session() middleware, to support

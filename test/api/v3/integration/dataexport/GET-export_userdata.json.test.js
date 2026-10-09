@@ -16,6 +16,7 @@ describe('GET /export/userdata.json', () => {
     expect(res._id).to.equal(user._id);
     expect(res).to.contain.all.keys(['tasks', 'flags', 'tasksOrder', 'auth']);
     expect(res.auth.local).not.to.have.keys(['salt', 'hashed_password']);
+    expect(res.apiToken).to.not.exist;
     expect(res.tasks).to.have.all.keys(['dailys', 'habits', 'todos', 'rewards']);
     expect(res.tasks.habits.length).to.equal(1);
     expect(res.tasks.habits[0]._id).to.equal(tasks[0]._id);

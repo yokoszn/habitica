@@ -1,5 +1,6 @@
 import find from 'lodash/find';
 import includes from 'lodash/includes';
+import isEmail from 'validator/lib/isEmail';
 
 import { encrypt } from '../encryption';
 import { sendNotification as sendPushNotification } from '../pushNotifications';
@@ -16,6 +17,9 @@ import {
 import {
   model as Group,
 } from '../../models/group';
+
+// The recipient name of an email invite is free text chosen by the inviter
+const MAX_INVITE_NAME_LENGTH = 100;
 
 async function sendInvitePushNotification (userToInvite, groupLabel, group, publicGuild, res) {
   if (userToInvite.preferences.pushNotifications[`invited${groupLabel}`] === false) return;
@@ -148,7 +152,11 @@ async function inviteByUUID (uuid, group, inviter, req, res) {
 async function inviteByEmail (invite, group, inviter, req, res) {
   let userReturnInfo;
 
-  if (!invite.email) throw new BadRequest(res.t('inviteMissingEmail'));
+  if (!invite || !invite.email) throw new BadRequest(res.t('inviteMissingEmail'));
+  // A non-string would also be used as a query operator in the lookup below
+  if (typeof invite.email !== 'string' || !isEmail(invite.email)) {
+    throw new BadRequest(res.t('notAnEmail'));
+  }
 
   const userToContact = await User.findOne({
     $or: [
@@ -178,7 +186,7 @@ async function inviteByEmail (invite, group, inviter, req, res) {
 
     const variables = [
       { name: 'LINK', content: link },
-      { name: 'INVITER', content: req.body.inviter || inviter.profile.name },
+      { name: 'INVITER', content: inviter.profile.name },
     ];
 
     if (group.type === 'guild') {
@@ -188,7 +196,14 @@ async function inviteByEmail (invite, group, inviter, req, res) {
     // Check for the email address not to be unsubscribed
     const userIsUnsubscribed = await EmailUnsubscription.findOne({ email: invite.email }).exec();
     const groupLabel = group.type === 'guild' ? '-guild' : '';
-    if (!userIsUnsubscribed) sendTxnEmail(invite, `invite-friend${groupLabel}`, variables);
+    if (!userIsUnsubscribed) {
+      // Only pass on the validated fields, not the whole request object
+      const recipient = {
+        email: invite.email,
+        name: typeof invite.name === 'string' ? invite.name.slice(0, MAX_INVITE_NAME_LENGTH) : undefined,
+      };
+      sendTxnEmail(recipient, `invite-friend${groupLabel}`, variables);
+    }
   }
 
   return userReturnInfo;

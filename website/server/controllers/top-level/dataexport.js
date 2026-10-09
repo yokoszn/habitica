@@ -77,6 +77,8 @@ api.exportUserHistory = {
 // at user.tasks[`${taskType}s`] (user.tasks.{dailys/habits/...})
 async function _getUserDataForExport (user) {
   const userData = user.toJSON();
+  // The API token is a credential, it must not end up in exported files
+  delete userData.apiToken;
   userData.tasks = {};
 
   userData.inbox.messages = {};

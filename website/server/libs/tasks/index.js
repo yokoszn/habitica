@@ -3,6 +3,7 @@ import compact from 'lodash/compact';
 import forEach from 'lodash/forEach';
 import keys from 'lodash/keys';
 import remove from 'lodash/remove';
+import nconf from 'nconf';
 import validator from 'validator';
 import {
   setNextDue,
@@ -27,6 +28,10 @@ import shared from '../../../common';
 import { taskScoredWebhook } from '../webhook';
 
 import logger from '../logger';
+
+// Each scoring runs the full scoring logic and can send webhooks, so a single
+// bulk request must not contain an unbounded number of them
+const MAX_BULK_SCORE = Number(nconf.get('MAX_BULK_SCORE')) || 100;
 
 /**
  * Creates tasks for a user, challenge or group.
@@ -532,6 +537,10 @@ export async function scoreTasks (user, taskScorings, req, res) {
   // taskScorings must be array with at least one value
   if (!taskScorings || !Array.isArray(taskScorings) || taskScorings.length < 1) {
     throw new BadRequest(apiError('invalidTaskScorings'));
+  }
+
+  if (taskScorings.length > MAX_BULK_SCORE) {
+    throw new BadRequest(apiError('tooManyTaskScorings', { maxScorings: MAX_BULK_SCORE }));
   }
 
   taskScorings.forEach(({ id, direction }) => {

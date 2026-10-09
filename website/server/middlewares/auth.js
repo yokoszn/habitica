@@ -139,7 +139,8 @@ export function authWithSession (req, res, next) {
   const { userId } = req.session;
 
   // Always allow authentication with headers
-  if (!userId) {
+  // (the session is parsed from JSON, so userId must be checked to be a string and not a query)
+  if (!userId || typeof userId !== 'string') {
     if (!req.header('x-api-user') || !req.header('x-api-key')) {
       return next(new NotAuthorized(res.t('invalidCredentials')));
     }

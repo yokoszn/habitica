@@ -74,6 +74,15 @@ describe('POST /members/:memberId/flag', () => {
       expect(moment(updatedTarget.profile.flags[reporter._id].timestamp).toDate()).to.be.a('date');
     });
 
+    it('does not return private data of the flagged user', async () => {
+      await target.updateOne({ 'auth.local.passwordResetCode': 'pending-reset-code' });
+      const response = await reporter.post(`/members/${target._id}/flag`);
+      expect(response.auth.local.username).to.eql(target.auth.local.username);
+      expect(response.auth.local.email).to.not.exist;
+      expect(response.auth.local.passwordResetCode).to.not.exist;
+      expect(response.profile.name).to.eql(target.profile.name);
+    });
+
     it('allows addition of a comment and source', async () => {
       await reporter.post(`/members/${target._id}/flag`, {
         comment,

@@ -407,4 +407,148 @@ describe('PUT /heroes/:heroId', () => {
     await hero.sync();
     expect(hero.achievements.streak).to.equal(0);
   });
+
+  context('privileges', () => {
+    let fullAccessAdmin;
+
+    const noPrivError = {
+      code: 401,
+      error: 'NotAuthorized',
+      message: t('noPrivAccess'),
+    };
+
+    before(async () => {
+      fullAccessAdmin = await generateUser({ 'permissions.fullAccess': true });
+    });
+
+    it('does not let a userSupport admin grant themselves fullAccess', async () => {
+      const supportAdmin = await generateUser({ 'permissions.userSupport': true });
+
+      await expect(supportAdmin.put(`/hall/heroes/${supportAdmin._id}`, {
+        permissions: { userSupport: true, fullAccess: true },
+      })).to.eventually.be.rejected.and.eql(noPrivError);
+
+      const updated = await User.findById(supportAdmin._id).exec();
+      expect(updated.permissions.fullAccess).to.not.equal(true);
+      expect(updated.permissions.userSupport).to.equal(true);
+    });
+
+    it('does not let a userSupport admin grant permissions to other users', async () => {
+      const hero = await generateUser();
+
+      await expect(user.put(`/hall/heroes/${hero._id}`, {
+        permissions: { fullAccess: true },
+      })).to.eventually.be.rejected.and.eql(noPrivError);
+      await expect(user.put(`/hall/heroes/${hero._id}`, {
+        permissions: { userSupport: true },
+      })).to.eventually.be.rejected.and.eql(noPrivError);
+      await expect(user.put(`/hall/heroes/${hero._id}`, {
+        permissions: { accessControl: true },
+      })).to.eventually.be.rejected.and.eql(noPrivError);
+      await expect(user.put(`/hall/heroes/${hero._id}`, {
+        contributor: { admin: true },
+      })).to.eventually.be.rejected.and.eql(noPrivError);
+
+      const updated = await User.findById(hero._id).exec();
+      expect(updated.permissions.fullAccess).to.not.equal(true);
+      expect(updated.permissions.userSupport).to.not.equal(true);
+      expect(updated.permissions.accessControl).to.not.equal(true);
+      expect(updated.contributor.admin).to.not.equal(true);
+    });
+
+    it('does not let a userSupport admin revoke permissions of other users', async () => {
+      const hero = await generateUser({ 'permissions.moderator': true });
+
+      await expect(user.put(`/hall/heroes/${hero._id}`, {
+        permissions: { moderator: false },
+      })).to.eventually.be.rejected.and.eql(noPrivError);
+
+      const updated = await User.findById(hero._id).exec();
+      expect(updated.permissions.moderator).to.equal(true);
+    });
+
+    it('does not let a userSupport admin update a fullAccess admin', async () => {
+      const hero = await generateUser({ 'permissions.fullAccess': true });
+      const originalEmail = hero.auth.local.email;
+      const originalToken = hero.apiToken;
+
+      await expect(user.put(`/hall/heroes/${hero._id}`, {
+        auth: { local: { email: 'attacker@example.com' } },
+      })).to.eventually.be.rejected.and.eql(noPrivError);
+      await expect(user.put(`/hall/heroes/${hero._id}`, {
+        auth: { blocked: true },
+      })).to.eventually.be.rejected.and.eql(noPrivError);
+      await expect(user.put(`/hall/heroes/${hero._id}`, {
+        changeApiToken: true,
+      })).to.eventually.be.rejected.and.eql(noPrivError);
+      await expect(user.put(`/hall/heroes/${hero._id}`, {
+        permissions: { fullAccess: false },
+      })).to.eventually.be.rejected.and.eql(noPrivError);
+
+      const updated = await User.findById(hero._id).exec();
+      expect(updated.auth.local.email).to.equal(originalEmail);
+      expect(updated.auth.blocked).to.not.equal(true);
+      expect(updated.apiToken).to.equal(originalToken);
+      expect(updated.permissions.fullAccess).to.equal(true);
+    });
+
+    it('does not let a userSupport admin change the email of a user holding a permission', async () => {
+      const hero = await generateUser({ 'permissions.moderator': true });
+      const originalEmail = hero.auth.local.email;
+
+      await expect(user.put(`/hall/heroes/${hero._id}`, {
+        auth: { local: { email: 'attacker@example.com' } },
+      })).to.eventually.be.rejected.and.eql(noPrivError);
+
+      const updated = await User.findById(hero._id).exec();
+      expect(updated.auth.local.email).to.equal(originalEmail);
+    });
+
+    it('lets a userSupport admin resend unchanged permissions and email', async () => {
+      const hero = await generateUser({ 'permissions.moderator': true });
+
+      await user.put(`/hall/heroes/${hero._id}`, {
+        contributor: { text: 'Astronaut', admin: false },
+        permissions: { moderator: true, fullAccess: false },
+        auth: { blocked: false, local: { email: hero.auth.local.email.toUpperCase() } },
+      });
+
+      const updated = await User.findById(hero._id).exec();
+      expect(updated.contributor.text).to.equal('Astronaut');
+      expect(updated.permissions.moderator).to.equal(true);
+      expect(updated.permissions.fullAccess).to.not.equal(true);
+      expect(updated.auth.local.email).to.equal(hero.auth.local.email);
+    });
+
+    it('lets a userSupport admin change the email of a user without permissions', async () => {
+      const hero = await generateUser({ 'auth.local.passwordResetCode': 'some-reset-code' });
+      const newEmail = `New-${generateUUID()}@example.com`;
+
+      const heroRes = await user.put(`/hall/heroes/${hero._id}`, {
+        auth: { local: { email: newEmail } },
+      });
+
+      expect(heroRes.auth.local.email).to.equal(newEmail.toLowerCase());
+      const updated = await User.findById(hero._id).exec();
+      expect(updated.auth.local.email).to.equal(newEmail.toLowerCase());
+      expect(updated.auth.local.passwordResetCode).to.not.exist;
+    });
+
+    it('lets a fullAccess admin change permissions and update other fullAccess admins', async () => {
+      const hero = await generateUser({ 'permissions.fullAccess': true });
+      const newEmail = `${generateUUID()}@example.com`;
+
+      await fullAccessAdmin.put(`/hall/heroes/${hero._id}`, {
+        permissions: { fullAccess: false, userSupport: true },
+        contributor: { admin: true },
+        auth: { local: { email: newEmail } },
+      });
+
+      const updated = await User.findById(hero._id).exec();
+      expect(updated.permissions.fullAccess).to.equal(false);
+      expect(updated.permissions.userSupport).to.equal(true);
+      expect(updated.contributor.admin).to.equal(true);
+      expect(updated.auth.local.email).to.equal(newEmail);
+    });
+  });
 });

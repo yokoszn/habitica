@@ -29,6 +29,16 @@ describe('timetravelMode middleware', () => {
     expect(calledWith[0] instanceof NotFound).to.equal(true);
   });
 
+  it('returns not found when disabled with the string "false"', () => {
+    nconfStub.withArgs('TIME_TRAVEL_ENABLED').returns('false');
+    nconfStub.withArgs('BASE_URL').returns('http://localhost:3000');
+
+    ensureTimeTravelMode(req, res, next);
+
+    const calledWith = next.getCall(0).args;
+    expect(calledWith[0] instanceof NotFound).to.equal(true);
+  });
+
   it('returns not found when not in time travel mode', () => {
     nconfStub.withArgs('TIME_TRAVEL_ENABLED').returns(false);
     nconfStub.withArgs('BASE_URL').returns('http://localhost:3000');

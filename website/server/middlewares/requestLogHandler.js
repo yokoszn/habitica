@@ -1,7 +1,6 @@
 import nconf from 'nconf';
 import { v4 as uuid } from 'uuid';
-import omit from 'lodash/omit';
-import logger from '../libs/logger';
+import logger, { redactSensitiveData } from '../libs/logger';
 
 const SLOW_REQUEST_THRESHOLD = nconf.get('SLOW_REQUEST_THRESHOLD');
 
@@ -11,9 +10,9 @@ function buildBaseLogData (req) {
     method: req.method,
     url: req.originalUrl,
 
-    headers: omit(req.headers, ['x-api-key', 'cookie', 'password', 'confirmPassword']),
-    body: omit(req.body, ['password', 'confirmPassword']),
-    query: omit(req.query, ['password', 'confirmPassword']),
+    headers: redactSensitiveData(req.headers),
+    body: redactSensitiveData(req.body),
+    query: redactSensitiveData(req.query),
   };
 }
 
