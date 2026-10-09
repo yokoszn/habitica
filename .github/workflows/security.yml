@@ -80,7 +80,7 @@ jobs:
             --exclude=database_reports --exclude=.opengrep \
             --max-target-bytes=1000000 \
             .
-      - uses: github/codeql-action/upload-sarif@88585263c0627ee42c0e1c5143a112c8d6f4aa18 # v4.38.2
+      - uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
         if: always() && hashFiles('opengrep.sarif') != ''
         with:
           sarif_file: opengrep.sarif
@@ -98,17 +98,20 @@ jobs:
         with:
           persist-credentials: false
       - name: Scan repository
-        uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           version: v0.74.0
           scan-type: fs
           scan-ref: .
-          scanners: vuln,misconfig,secret
+          # Dependency alerts point at lockfile lines, so code scanning reports every existing
+          # advisory as new in a pull request that touches a lockfile. On pull requests, new
+          # vulnerable dependencies are reported by OSV-Scanner and Dependency review instead.
+          scanners: ${{ github.event_name == 'pull_request' && 'misconfig,secret' || 'vuln,misconfig,secret' }}
           skip-dirs: habitica-images,website/client/public
           format: sarif
           output: trivy.sarif
           exit-code: "0"
-      - uses: github/codeql-action/upload-sarif@88585263c0627ee42c0e1c5143a112c8d6f4aa18 # v4.38.2
+      - uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
         if: always() && hashFiles('trivy.sarif') != ''
         with:
           sarif_file: trivy.sarif
@@ -139,7 +142,7 @@ jobs:
       - name: Check that the server runs as non-root
         run: test "$(docker run --rm --entrypoint id habitica-server:scan -u)" != "0"
       - name: Scan the image
-        uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           version: v0.74.0
           scan-type: image
@@ -148,7 +151,7 @@ jobs:
           format: sarif
           output: trivy-image.sarif
           exit-code: "0"
-      - uses: github/codeql-action/upload-sarif@88585263c0627ee42c0e1c5143a112c8d6f4aa18 # v4.38.2
+      - uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
         if: always() && hashFiles('trivy-image.sarif') != ''
         with:
           sarif_file: trivy-image.sarif

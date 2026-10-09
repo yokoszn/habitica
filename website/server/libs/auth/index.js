@@ -16,6 +16,7 @@ import { model as Group } from '../../models/group';
 import {
   loginSocial,
   newUserDefaults,
+  saveNewUser,
   socialEmailToLocal,
 } from './social';
 import { loginRes } from './utils';
@@ -161,7 +162,7 @@ async function registerLocal (req, res, { isV3 = false }) {
         passwordHashMethod: 'bcrypt',
       },
     },
-    ...await newUserDefaults(),
+    ...newUserDefaults(),
     preferences: {
       language: req.language,
     },
@@ -202,7 +203,7 @@ async function registerLocal (req, res, { isV3 = false }) {
     throw new NotAuthorized(res.t('inviteOnly'));
   }
 
-  const savedUser = await newUser.save();
+  const savedUser = existingUser ? await newUser.save() : await saveNewUser(newUser);
 
   let userToJSON;
   if (isV3) {
