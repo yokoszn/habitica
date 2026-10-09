@@ -270,6 +270,11 @@ describe('GET /challenges/:challengeId/members', () => {
       expect(response).to.eql([]);
     });
 
+    it('matches a catastrophic backtracking pattern literally', async () => {
+      const response = await user.get(`/challenges/${challenge._id}/members`, undefined, { search: '(a+)+$' });
+      expect(response).to.eql([]);
+    });
+
     it('does not fail on an invalid regular expression', async () => {
       const response = await user.get(`/challenges/${challenge._id}/members`, undefined, { search: '(' });
       expect(response).to.eql([]);

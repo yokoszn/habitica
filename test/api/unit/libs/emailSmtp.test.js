@@ -64,4 +64,17 @@ describe('emailSmtp', () => {
     sendEmail('kicked-from-party', [{ name: 'MESSAGE', content: 'Bye' }], [recipient('user@example.com', 'Name')]);
     expect(sendMail.secondCall.args[0].text).to.include('You were removed from your party.\n\nMessage from the party leader:\nBye');
   });
+
+  it('escapes the group name and the message in the HTML part of kick emails', () => {
+    sendEmail('kicked-from-guild', [
+      { name: 'GROUP_NAME', content: '<img src=x onerror=alert(1)>' },
+      { name: 'MESSAGE', content: '<script>alert(2)</script>' },
+    ], [recipient('user@example.com', 'Name')]);
+
+    const { html } = sendMail.firstCall.args[0];
+    expect(html).to.not.include('<img src=x');
+    expect(html).to.not.include('<script>');
+    expect(html).to.include('&lt;img src=x onerror=alert(1)&gt;');
+    expect(html).to.include('&lt;script&gt;alert(2)&lt;/script&gt;');
+  });
 });
