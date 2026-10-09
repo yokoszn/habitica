@@ -4,10 +4,16 @@ import escape from 'lodash/escape';
 import mapValues from 'lodash/mapValues';
 import logger from './logger';
 
+const isEnabled = name => [true, 'true'].includes(nconf.get(name));
+
 const transporter = nodemailer.createTransport({
   host: nconf.get('EMAIL_SERVER_URL'),
   port: nconf.get('EMAIL_SERVER_PORT') || 587,
-  secure: false,
+  // Implicit TLS (usually port 465). Otherwise STARTTLS is used if the server offers it.
+  secure: isEnabled('EMAIL_SERVER_SECURE'),
+  // Refuse to send without STARTTLS, so that a network attacker cannot strip it and read the
+  // credentials and emails (which contain password reset links)
+  requireTLS: isEnabled('EMAIL_SERVER_REQUIRE_TLS'),
   auth: {
     user: nconf.get('EMAIL_SERVER_AUTH_USER'),
     pass: nconf.get('EMAIL_SERVER_AUTH_PASSWORD'),

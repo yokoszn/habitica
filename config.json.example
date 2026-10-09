@@ -25,6 +25,8 @@
   "DISABLE_REQUEST_LOGGING": "true",
   "EMAIL_SERVER_AUTH_PASSWORD": "password",
   "EMAIL_SERVER_AUTH_USER": "user",
+  "EMAIL_SERVER_REQUIRE_TLS": "false",
+  "EMAIL_SERVER_SECURE": "false",
   "EMAIL_SERVER_URL": "http://example.com",
   "EMAILS_COMMUNITY_MANAGER_EMAIL": "admin@habitica.com",
   "EMAILS_PRESS_ENQUIRY_EMAIL": "admin@habitica.com",

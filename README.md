@@ -68,6 +68,7 @@ services:
       - INVITE_ONLY=false # change to `true` after registration of initial users, to restrict further registrations
       - EMAIL_SERVER_URL=mail.example.com
       - EMAIL_SERVER_PORT=587
+      - EMAIL_SERVER_REQUIRE_TLS=true # refuse to send emails without STARTTLS (EMAIL_SERVER_SECURE=true for implicit TLS on port 465)
       - EMAIL_SERVER_AUTH_USER=mail_user
       - EMAIL_SERVER_AUTH_PASSWORD=mail_password
       - ADMIN_EMAIL=mail@example.com # the sender address to send out emails
