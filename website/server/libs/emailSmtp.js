@@ -1,5 +1,7 @@
 import nconf from 'nconf';
 import nodemailer from 'nodemailer';
+import escape from 'lodash/escape';
+import mapValues from 'lodash/mapValues';
 import logger from './logger';
 
 const transporter = nodemailer.createTransport({
@@ -102,17 +104,17 @@ const templates = {
   },
   'kicked-from-party': {
     subject: 'Removed from Party',
-    text: variables => (`You were removed from your party.${variables.MESSAGE}` ? `\n\nMessage from the party leader:\n${variables.MESSAGE}` : ''),
+    text: variables => `You were removed from your party.${variables.MESSAGE ? `\n\nMessage from the party leader:\n${variables.MESSAGE}` : ''}`,
     button_text: 'Visit Habitica',
     button_link: variables => variables.BASE_URL,
-    text_before: variables => (`You were removed from your party.${variables.MESSAGE}` ? `<br><br>Message from the party leader:<br>${variables.MESSAGE}` : ''),
+    text_before: variables => `You were removed from your party.${variables.MESSAGE ? `<br><br>Message from the party leader:<br>${variables.MESSAGE}` : ''}`,
   },
   'kicked-from-guild': {
     subject: 'Removed from Guild',
-    text: variables => (`You were removed from the guild ${variables.GROUP_NAME}.${variables.MESSAGE}` ? `\n\nMessage from the party leader:\n${variables.MESSAGE}` : ''),
+    text: variables => `You were removed from the guild ${variables.GROUP_NAME}.${variables.MESSAGE ? `\n\nMessage from the guild leader:\n${variables.MESSAGE}` : ''}`,
     button_text: 'Visit Habitica',
     button_link: variables => variables.BASE_URL,
-    text_before: variables => (`You were removed from the guild ${variables.GROUP_NAME}.${variables.MESSAGE}` ? `<br><br>Message from the party leader:<br>${variables.MESSAGE}` : ''),
+    text_before: variables => `You were removed from the guild ${variables.GROUP_NAME}.${variables.MESSAGE ? `<br><br>Message from the guild leader:<br>${variables.MESSAGE}` : ''}`,
   },
 };
 
@@ -544,22 +546,26 @@ export default function sendEmail (emailType, variables, personalVariables) {
   }
 
   personalVariables.forEach(recipient => {
-    const personalVariablesMap = variablesMap;
+    // Copy, so that the variables of one recipient are not sent to the next one
+    const personalVariablesMap = { ...variablesMap };
     recipient.vars.forEach(variable => {
       personalVariablesMap[variable.name] = variable.content;
     });
+    // Values like display names, group names and messages are chosen by users
+    const htmlVariablesMap = mapValues(personalVariablesMap, value => (typeof value === 'string' ? escape(value) : value));
 
     transporter.sendMail({
       from: `Habitica <${adminMail}>`,
-      to: `${personalVariablesMap.RECIPIENT_NAME} <${recipient.rcpt}>`,
+      // An address object, so that the recipient's display name cannot add recipients
+      to: { name: personalVariablesMap.RECIPIENT_NAME || '', address: recipient.rcpt },
       subject: template.subject,
       text: `Greetings${personalVariablesMap.RECIPIENT_NAME ? ` ${personalVariablesMap.RECIPIENT_NAME}` : ''},\n\n${template.text(personalVariablesMap)}\n\nWarmly,\nThe Habitica Team`,
       html: htmlTemplate(
-        personalVariablesMap,
+        htmlVariablesMap,
         template.button_text,
-        template.button_link(personalVariablesMap),
-        template.text_before(personalVariablesMap),
+        template.button_link(htmlVariablesMap),
+        template.text_before(htmlVariablesMap),
       ),
-    });
+    }).catch(err => logger.error(err, `Could not send the '${emailType}' email.`));
   });
 }
