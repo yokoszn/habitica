@@ -52,6 +52,7 @@
   "LOGGLY_SUBDOMAIN": "example-subdomain",
   "LOGGLY_TOKEN": "example-token",
   "MAINTENANCE_MODE": "false",
+  "MAX_BULK_SCORE": 100,
   "MONGODB_POOL_SIZE": "10",
   "MONGODB_SOCKET_TIMEOUT": "20000",
   "NODE_DB_URI": "mongodb://localhost:27017/habitica-dev?replicaSet=rs&directConnection=true&readPreference=secondary",

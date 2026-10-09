@@ -1,6 +1,7 @@
 import dns from 'dns';
 import net from 'net';
 import got from 'got';
+import uniqBy from 'lodash/uniqBy';
 import { isURL } from 'validator';
 import nconf from 'nconf';
 import moment from 'moment';
@@ -89,8 +90,8 @@ function postWebhook (url, body) {
 
   return got.post(url, {
     json: body,
-    timeout: 30000, // wait up to 30s before timing out
-    retry: 3, // retry the request up to 3 times
+    timeout: 10000, // wait up to 10s before timing out
+    retry: 0, // do not retry (got skips retries for POST by default anyway)
     // A redirect could point to an internal address
     followRedirect: false,
     ...(allowPrivate ? {} : { lookup: lookupPublicAddress }),
@@ -191,12 +192,16 @@ export class WebhookSender {
   send (user, data) {
     const { webhooks } = user;
 
-    const hooks = webhooks.filter(hook => {
+    const matchingHooks = webhooks.filter(hook => {
       if (!isValidWebhook(hook)) return false;
       if (hook.type === 'globalActivity') return true;
 
       return this.type === hook.type && this.webhookFilter(hook, data);
     });
+
+    // The body is the same for every hook, so send it only once per URL.
+    // Otherwise registering one URL many times multiplies the outgoing requests.
+    const hooks = uniqBy(matchingHooks, 'url');
 
     if (hooks.length < 1) {
       return; // prevents running the body creation code if there are no webhooks to send

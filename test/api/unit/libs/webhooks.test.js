@@ -324,6 +324,55 @@ describe('webhooks', () => {
       });
     });
 
+    it('sends a webhook only once per url', () => {
+      const sendWebhook = new WebhookSender({
+        type: 'custom',
+      });
+
+      const body = { foo: 'bar' };
+
+      user.webhooks = [
+        {
+          id: 'custom-webhook', url: 'http://custom-url.com', enabled: true, type: 'custom',
+        },
+        {
+          id: 'global-webhook', url: 'http://custom-url.com', enabled: true, type: 'globalActivity',
+        },
+        {
+          id: 'global-webhook-2', url: 'http://custom-url.com', enabled: true, type: 'globalActivity',
+        },
+        {
+          id: 'other-custom-webhook', url: 'http://other-url.com', enabled: true, type: 'custom',
+        },
+      ];
+      sendWebhook.send(user, body);
+
+      expect(got.post).to.be.calledTwice;
+      expect(got.post).to.be.calledWithMatch('http://custom-url.com', {
+        json: body,
+      });
+      expect(got.post).to.be.calledWithMatch('http://other-url.com', {
+        json: body,
+      });
+    });
+
+    it('sends a webhook with a short timeout and no retries', () => {
+      const sendWebhook = new WebhookSender({
+        type: 'custom',
+      });
+
+      user.webhooks = [{
+        id: 'custom-webhook', url: 'http://custom-url.com', enabled: true, type: 'custom',
+      }];
+      sendWebhook.send(user, { foo: 'bar' });
+
+      expect(got.post).to.be.calledOnce;
+      expect(got.post).to.be.calledWithMatch('http://custom-url.com', {
+        timeout: 10000,
+        retry: 0,
+      });
+    });
+
     describe('failures', () => {
       let sendWebhook;
 
