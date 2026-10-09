@@ -118,4 +118,30 @@ describe('auth middleware', () => {
       });
     });
   });
+
+  describe('auth with session', () => {
+    it('authenticates the user of the session', done => {
+      const { authWithSession } = requireAgain(authPath);
+      req.session.userId = user._id;
+
+      authWithSession(req, res, err => {
+        if (err) return done(err);
+        expect(res.locals.user._id).to.equal(user._id);
+        return done();
+      });
+    });
+
+    it('rejects a session user id that is not a string', done => {
+      const { authWithSession } = requireAgain(authPath);
+      req.session.userId = { $ne: null };
+      res.locals.user = undefined;
+
+      authWithSession(req, res, err => {
+        expect(err).to.exist;
+        expect(err.name).to.equal('NotAuthorized');
+        expect(res.locals.user).to.not.exist;
+        done();
+      });
+    });
+  });
 });
