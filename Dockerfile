@@ -77,7 +77,12 @@ COPY --from=build /usr/src/habitica/i18n_cache/ /var/lib/habitica/i18n_cache/
 # The server writes cached content responses here at runtime
 COPY --from=build --chown=node:node /usr/src/habitica/content_cache/ /var/lib/habitica/content_cache/
 
-COPY --from=build /usr/src/habitica/website/ /var/lib/habitica/website/
+# Only what the server and the team cron use at runtime: the client's sources and build
+# tooling (website/client/node_modules) stay in the build stage
+COPY --from=build /usr/src/habitica/website/common/ /var/lib/habitica/website/common/
+COPY --from=build /usr/src/habitica/website/server/ /var/lib/habitica/website/server/
+COPY --from=build /usr/src/habitica/website/transpiled-babel/ /var/lib/habitica/website/transpiled-babel/
+COPY --from=build /usr/src/habitica/website/client/dist/ /var/lib/habitica/website/client/dist/
 
 COPY --from=build /usr/src/habitica/package.json /var/lib/habitica/package.json
 COPY --from=build /usr/src/habitica/config.json /var/lib/habitica/config.json
