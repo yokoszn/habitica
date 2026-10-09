@@ -71,6 +71,11 @@ services:
       - EMAIL_SERVER_AUTH_USER=mail_user
       - EMAIL_SERVER_AUTH_PASSWORD=mail_password
       - ADMIN_EMAIL=mail@example.com # the sender address to send out emails
+      # Secrets for sessions and emailed links (password reset, invitations, unsubscribe).
+      # Generate each one with `openssl rand -hex 32`. If they are missing, random values are used,
+      # which change with every restart of the container.
+      - SESSION_SECRET=replace-with-output-of-openssl-rand-hex-32
+      - SESSION_SECRET_KEY=replace-with-output-of-openssl-rand-hex-32
     ports:
       - "3000:3000"
     networks:

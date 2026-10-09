@@ -10,7 +10,7 @@ services:
       - mongodb-network
     hostname: "mongodb"
     ports:
-      - "27017:27017"
+      - "127.0.0.1:27017:27017" # only reachable from this machine; MongoDB runs without authentication
     restart: "unless-stopped"
     volumes:
       - "./mongodb-data-docker:/data/db"
